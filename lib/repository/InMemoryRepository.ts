@@ -1,12 +1,13 @@
-import { customAlphabet } from "nanoid";
+
 import { Tenant, TenantRepository } from "../../types";
+import { idGenerator } from "../util";
+
 
 const DEFAULT_TENANTS: Map<string, Tenant> = new Map();
 
 export class InMemoryRepository implements TenantRepository {
 
     private tenants: Map<string, Tenant> = DEFAULT_TENANTS;
-    private idGenerator: () => string = customAlphabet('1234567890abcdefghilmnopqrstuvzxykj', 10);
 
     async has(tenantId: any): Promise<boolean> {
         return this.tenants.has(tenantId);
@@ -37,7 +38,7 @@ export class InMemoryRepository implements TenantRepository {
     }
 
     async add(tenant: Tenant): Promise<Tenant | undefined> {
-        tenant.id = this.idGenerator();
+        tenant.id = idGenerator();
         this.tenants.set(tenant.id, tenant);
 
         return await this.get(tenant.id);

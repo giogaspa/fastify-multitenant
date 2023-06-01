@@ -2,13 +2,12 @@ import { customAlphabet } from "nanoid";
 import { Pool, PoolConfig, QueryResultRow } from "pg";
 
 import { Tenant, TenantRepository } from "../../types";
+import { idGenerator } from "../util";
 
 //FIXME get tenant table name from .env file
 const TENANT_TABLE = 'tenant';
 
 export class PostgreSQLRepository implements TenantRepository {
-
-     private idGenerator: () => string = customAlphabet('1234567890abcdefghilmnopqrstuvzxykj', 10);
      private db: Pool;
 
      constructor(config: PoolConfig) {
@@ -52,7 +51,7 @@ export class PostgreSQLRepository implements TenantRepository {
      }
 
      async add(tenant: Tenant): Promise<Tenant | undefined> {
-          tenant.id = this.idGenerator();
+          tenant.id = idGenerator();
 
           //FIXME use library for sanitize inputs like @nearform/sql
           const r = await this.db.query(
