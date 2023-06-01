@@ -1,7 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
-import { customAlphabet } from "nanoid";
-
 import { TenantRepository, Tenant } from "../../types";
 import { idGenerator } from "../util";
 

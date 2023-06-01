@@ -1,4 +1,3 @@
-import { customAlphabet } from "nanoid";
 import { Pool, PoolConfig, QueryResultRow } from "pg";
 
 import { Tenant, TenantRepository } from "../../types";
