@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { FastifyInstance } from "fastify";
 
-import { Tenant } from "../types";
+import { Tenant } from "../@types/plugin";
 
 export class TenantConnectionPool {
 

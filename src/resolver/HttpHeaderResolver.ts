@@ -1,6 +1,6 @@
 import { FastifyRequest } from "fastify";
 import { Resolver } from "./Resolver";
-import { Tenant, TenantRepository } from "../../types";
+import { Tenant, TenantRepository } from "../@types/plugin";
 
 const DEFAULT_HEADER_NAME = 'x-tenant-id';
 

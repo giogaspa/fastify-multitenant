@@ -1,5 +1,5 @@
 
-import { Tenant, TenantRepository } from "../../types";
+import { Tenant, TenantRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
 
 

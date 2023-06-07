@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
-import { TenantRepository, Tenant } from "../../types";
+import { TenantRepository, Tenant } from "../@types/plugin";
 import { idGenerator } from "../util";
 
 export class JsonRepository implements TenantRepository {

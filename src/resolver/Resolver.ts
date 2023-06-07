@@ -1,5 +1,5 @@
 import { FastifyRequest } from "fastify";
-import { Tenant, TenantRepository } from "../../types";
+import { Tenant, TenantRepository } from "../@types/plugin";
 
 export abstract class Resolver {
     repository: TenantRepository;

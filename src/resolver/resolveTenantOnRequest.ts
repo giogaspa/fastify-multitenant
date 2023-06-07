@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply, HookHandlerDoneFunction } from "fastify";
 import { withTenantDBClient } from "../requestContext";
-import { Tenant, TenantRepository } from "../../types";
+import { Tenant, TenantRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
 
 type ResolverConstructor = new (repository: TenantRepository, config?: any) => Resolver
@@ -29,6 +29,8 @@ function resolverFactory(
         let tenant = undefined;
 
         while (tenant === undefined && i < resolverList.length) {
+            //server.log.debug(`Run resolver ${resolverList[i].constructor.name}`);
+
             tenant = await resolverList[i].resolve(request);
             i++;
         }
@@ -46,10 +48,15 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
 
     return (request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) => {
 
+        //server.log.debug(`Run tenant resolver`);
+
+        // TODO Refactor this function
         resolver(request)
             .then((tenant: Tenant | undefined) => {
 
                 if (tenant !== undefined) {
+
+                    //server.log.debug(`Request resolved with tenant:`, { tenant });
 
                     //Set tenant decorator
                     request.tenant = tenant
@@ -62,11 +69,14 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
                 } else {
 
                     if (request.isAdminHost()) {
-                        server.log.debug('Is admin');
+
+                        //server.log.debug('Is admin request');
+
                         done();
                     } else {
                         reply.tenantBadRequest();
                     }
+
                 }
 
 
