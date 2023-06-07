@@ -1,28 +1,48 @@
-# __MY_PLUGIN__
+# :construction: @giogaspa/fastify-multitenant :construction:
 
-[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](http://standardjs.com/)  ![CI workflow](__MY_PLUGIN_URL__
-/workflows/CI%20workflow/badge.svg)
+---
+**NOTE**
 
-Supports Fastify versions `4.x`
+This is a work in progress, please look at the develop branch for ongoing development.
+
+---
+
+ Multitenant plugin for Fastify.
+
+ Supports Fastify versions `4.x`
 
 ## Install
 ```
-npm i __MY_PLUGIN__
+npm i @giogaspa/fastify-multitenant
 ```
 
 ## Usage
-Require `__MY_PLUGIN__` and register.
+Require `@giogaspa/fastify-multitenant` and register.
 ```js
-const fastify = require('fastify')()
+const fastify = require('fastify')();
+const { PostgreSQLRepository, HostnameResolver, HttpHeaderResolver } = require("@giogaspa/fastify-multitenant");
 
-fastify.register(require('__MY_PLUGIN__'), {
-  // put your options here
+// Instantiate admin repository
+const pgAdminRepository = new PostgreSQLRepository({ config: { connectionString: "postgresql://postgres:1234@localhost:5432/postgres?schema=public" } });
+//const jsonAdminRepository = new JsonRepository(join(__dirname, '..','.tenants.json'));
+//const inMemoryAdminRepository = new InMemoryRepository();
+
+fastify.register(require('@giogaspa/fastify-multitenant'), {
+    adminHost: 'admin.domain.tld', // Admin host domain
+    tenantRepository: pgAdminRepository, // Repository to retrieve tenant connection information. 
+    resolverStrategies: [ // Strategies to recognize the tenant
+        HostnameResolver, // Hostname strategy
+        {
+            classConstructor: HttpHeaderResolver, // Header parameter strategy
+            config: {
+                header: 'x-tenant',
+            }
+        }
+    ]
 })
 
 fastify.listen({ port: 3000 })
 ```
-
-## Acknowledgements
 
 ## License
 
