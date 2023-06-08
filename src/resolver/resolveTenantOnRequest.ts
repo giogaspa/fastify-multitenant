@@ -47,7 +47,6 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
     const resolver = resolverFactory(server, resolverStrategies);
 
     return (request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) => {
-
         //server.log.debug(`Run tenant resolver`);
 
         // TODO Refactor this function
@@ -69,7 +68,7 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
                 } else {
 
                     if (request.isAdminHost()) {
-
+                        
                         //server.log.debug('Is admin request');
 
                         done();

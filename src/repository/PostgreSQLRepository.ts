@@ -1,4 +1,4 @@
-import { Pool, PoolConfig, QueryResultRow } from "pg";
+import { Client, ClientConfig, Pool, PoolConfig, QueryResultRow } from "pg";
 
 import { Tenant, TenantRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
@@ -6,25 +6,73 @@ import SQL = require("@nearform/sql");
 
 const DEFAULT_TENANT_TABLE_NAME = 'tenant';
 
-export interface PostgreSQLRepositoryOptions {
+export interface PostgreSQLRepositoryConfig {
      tableName?: string;
-     config: PoolConfig
+     clientConfig?: ClientConfig | PoolConfig;
+     client?: Client | Pool;
+}
+
+interface PostgreSQLRepositoryOptions {
+     tableName: string;
+     clientConfig?: ClientConfig | PoolConfig | undefined;
+}
+
+class MissingConfigurationParameter extends Error {
+     constructor() {
+          super('"clientConfig" or "client" must be provided to the PostgreSQLRepository constructor');
+
+          Object.setPrototypeOf(this, MissingConfigurationParameter.prototype);
+     }
 }
 
 export class PostgreSQLRepository implements TenantRepository {
-     private db: Pool;
+     private client: Client | Pool;
      private options: PostgreSQLRepositoryOptions;
 
-     constructor(options: PostgreSQLRepositoryOptions) {
+     constructor(options: PostgreSQLRepositoryConfig) {
+          const {
+               tableName = DEFAULT_TENANT_TABLE_NAME,
+               clientConfig,
+               client
+          } = options;
+
           this.options = {
-               tableName: DEFAULT_TENANT_TABLE_NAME,
-               ...options
+               tableName,
+               clientConfig
           };
-          this.db = new Pool(options.config);
+
+          if (clientConfig === undefined
+               && client === undefined) {
+               throw new MissingConfigurationParameter();
+          }
+
+          if (client) {
+               this.client = client;
+               return;
+          }
+
+          if (this.isPoolConfig()) {
+               this.client = new Pool(this.options.clientConfig);
+               return;
+          }
+
+          this.client = new Client(this.options.clientConfig);
+     }
+
+     private isPoolConfig() {
+          return this.options.clientConfig
+               && (
+                    'max' in this.options.clientConfig
+                    || 'min' in this.options.clientConfig
+                    || 'idleTimeoutMillis' in this.options.clientConfig
+                    || 'log' in this.options.clientConfig
+                    || 'Promise' in this.options.clientConfig
+                    || 'allowExitOnIdle' in this.options.clientConfig
+                    || 'maxUses' in this.options.clientConfig
+               )
      }
 
      private get tableName(): string {
-          //@ts-ignore
           return this.options.tableName;
      }
 
@@ -36,7 +84,7 @@ export class PostgreSQLRepository implements TenantRepository {
           WHERE id = ${tenantId}
           `;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1;
      }
@@ -49,7 +97,7 @@ export class PostgreSQLRepository implements TenantRepository {
           WHERE id = ${tenantId}
           `;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1 ? this.createTenantFromRow(r.rows[0]) : undefined;
      }
@@ -62,7 +110,7 @@ export class PostgreSQLRepository implements TenantRepository {
           WHERE hostname = ${hostname}
           `;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1 ? this.createTenantFromRow(r.rows[0]) : undefined;
      }
@@ -75,7 +123,7 @@ export class PostgreSQLRepository implements TenantRepository {
           VALUES (${tenant.id},${tenant.hostname},${tenant.connectionString})
           `;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1 ? tenant : undefined;
      }
@@ -88,7 +136,7 @@ export class PostgreSQLRepository implements TenantRepository {
           WHERE id = ${tenant.id}
           `;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1 ? tenant : undefined;
      }
@@ -99,7 +147,7 @@ export class PostgreSQLRepository implements TenantRepository {
           FROM ${SQL.quoteIdent(this.tableName)} 
           WHERE id = ${tenantId}`;
 
-          const r = await this.db.query(query);
+          const r = await this.client.query(query);
 
           return r.rowCount === 1;
      }
@@ -110,11 +158,7 @@ export class PostgreSQLRepository implements TenantRepository {
      }
 
      async shutdown(): Promise<void> {
-          await this.db.end();
-     }
-
-     get database(): Pool {
-          return this.db;
+          await this.client.end();
      }
 
      createTenantFromRow(row: QueryResultRow): Tenant {
