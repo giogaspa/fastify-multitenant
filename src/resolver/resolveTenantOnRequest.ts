@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply, HookHandlerDoneFunction 
 import { withTenantDBClient } from "../requestContext";
 import { Tenant, TenantRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
+import { DECORATOR_NAME } from "..";
 
 type ResolverConstructor = new (repository: TenantRepository, config?: any) => Resolver
 
@@ -18,9 +19,10 @@ function resolverFactory(
 ): (request: FastifyRequest) => Promise<Tenant | undefined> {
     const resolverList = resolverStrategies.map(resolver => {
         if ('classConstructor' in resolver) {
-            return new resolver.classConstructor(server.tenantRepository, resolver.config);
+            // @ts-ignore
+            return new resolver.classConstructor(server[DECORATOR_NAME].tenantRepository, resolver.config);
         } else {
-            return new resolver(server.tenantRepository);
+            return new resolver(server.multitenant.tenantRepository);
         }
     });
 
@@ -57,34 +59,42 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
 
                     //server.log.debug(`Request resolved with tenant:`, { tenant });
 
-                    //Set tenant decorator
-                    request.tenant = tenant
+                    // Set tenant decorator
+                    // @ts-ignore
+                    request[DECORATOR_NAME].current = tenant
 
-                    //Set tenant db client 
-                    const tenantDB = server.tenantConnectionPool.get(tenant);
-                    request.tenantDB = tenantDB;
+                    // Get tenant connection from tenants connection pool
+                    // @ts-ignore
+                    const tenantDB = server[DECORATOR_NAME].tenantConnectionPool.get(tenant);
+
+                    // Set tenant db client 
+                    // @ts-ignore
+                    request[DECORATOR_NAME].currentDB = tenantDB;
+
                     // Set tenantDB to abstract repository
                     withTenantDBClient(tenantDB, done);
 
                 } else {
 
-                    if (request.isAdminHost()) {
-
+                    // @ts-ignore
+                    if (request[DECORATOR_NAME].isAdminHost()) {
                         //server.log.debug('Is admin request');
 
                         done();
                     } else {
-                        reply.tenantBadRequest();
+                        // @ts-ignore
+                        reply[DECORATOR_NAME].badRequest();
                     }
 
                 }
-
 
             })
             .catch(error => {
                 server.log.error("Error on tenant resolver");
                 server.log.error(error);
-                reply.tenantBadRequest();
+
+                // @ts-ignore
+                reply[DECORATOR_NAME].badRequest();
             })
     }
 };
