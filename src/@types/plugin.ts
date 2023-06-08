@@ -2,7 +2,6 @@ import { FastifyPluginAsync, FastifyPluginCallback, FastifyPluginOptions } from 
 import { ResolverStrategyConstructor } from '../resolver/resolveTenantOnRequest';
 
 export interface FastifyMultitenantPluginOption extends FastifyPluginOptions {
-  adminHost: string,
   tenantRepository?: TenantRepository,
   resolverStrategies: ResolverStrategyConstructor[]
 }
