@@ -6,7 +6,8 @@
 
 ## Status
 
-Pre-alpha.  
+Pre-alpha.
+
 **This is a work in progress and api could change quickly!!!**  
 **The plugin is not ready for production, use at your own risk!**  
 
