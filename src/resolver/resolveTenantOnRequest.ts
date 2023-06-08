@@ -3,11 +3,13 @@ import { withTenantDBClient } from "../requestContext";
 import { Tenant, TenantRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
 
-type ResolverConstructor = new (repository: TenantRepository, config?: any) => Resolver
+export type ResolverConstructorConfigType =  any | { admin?: string };
+
+type ResolverConstructor = new (repository: TenantRepository, config?: ResolverConstructorConfigType) => Resolver
 
 type ResolverConstructorConfiguration = {
     classConstructor: ResolverConstructor,
-    config: any
+    config: ResolverConstructorConfigType
 }
 
 export type ResolverStrategyConstructor = ResolverConstructor | ResolverConstructorConfiguration;

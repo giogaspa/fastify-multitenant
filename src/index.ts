@@ -27,7 +27,7 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
 
   //server.log.debug(`Registered Fastify Multitenant Plugin`);
 
-  // Is it possible to register `tenantRepository` outside plugin
+  // TODO Is it possible to register `tenantRepository` outside plugin...maybe is not so useful!
   if (!server.hasDecorator('tenantRepository')) {
     server.decorate('tenantRepository', tenantRepository);
   }
