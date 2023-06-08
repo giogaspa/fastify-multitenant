@@ -16,6 +16,9 @@ export { HostnameResolver } from './resolver/HostnameResolver';
 export { HttpHeaderResolver } from './resolver/HttpHeaderResolver';
 export { Resolver } from './resolver/Resolver';
 
+// Export abstract tenant request repository
+export { RequestTenantRepository } from './requestContext';
+
 const PLUGIN_NAME: string = 'fastify-multitenant-plugin';
 
 const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: FastifyInstance, option: FastifyMultitenantPluginOption) => {
@@ -32,6 +35,9 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
 
   // Add tenant to request
   server.decorateRequest('tenant', undefined);
+
+  // Add tenant DB to request
+  server.decorateRequest('tenantDB', undefined);
 
   // Add isAdminHost function to request
   server.decorateRequest('isAdminHost', function isAdminHost(this: FastifyRequest) {

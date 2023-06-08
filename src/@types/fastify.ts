@@ -1,4 +1,5 @@
 
+import { Client, Pool } from 'pg'
 import { TenantConnectionPool } from '../repository/TenantConnectionPool'
 import { Tenant, TenantRepository } from './plugin'
 
@@ -11,6 +12,7 @@ declare module 'fastify' {
 
   export interface FastifyRequest {
     tenant: Tenant | undefined,
+    tenantDB: Client | Pool | undefined,
     isAdminHost: () => boolean
   }
 

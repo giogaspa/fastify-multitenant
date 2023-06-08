@@ -60,15 +60,16 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
                     //Set tenant decorator
                     request.tenant = tenant
 
-                    //Set tenant db client to decorator
+                    //Set tenant db client 
                     const tenantDB = server.tenantConnectionPool.get(tenant);
-
+                    request.tenantDB = tenantDB;
+                    // Set tenantDB to abstract repository
                     withTenantDBClient(tenantDB, done);
 
                 } else {
 
                     if (request.isAdminHost()) {
-                        
+
                         //server.log.debug('Is admin request');
 
                         done();

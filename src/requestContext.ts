@@ -12,7 +12,7 @@ export function getTenantDBClient(): Pool {
     return <Pool>asyncLocalStorage.getStore();
 }
 
-export class AbstractRepository {
+export abstract class RequestTenantRepository {
     get db(): Pool {
         return getTenantDBClient();
     }
