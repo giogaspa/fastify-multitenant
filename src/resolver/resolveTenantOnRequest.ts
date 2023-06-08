@@ -1,13 +1,15 @@
 import { FastifyInstance, FastifyRequest, FastifyReply, HookHandlerDoneFunction } from "fastify";
 import { withTenantDBClient } from "../requestContext";
-import { Tenant, TenantRepository } from "../../types";
+import { Tenant, TenantRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
 
-type ResolverConstructor = new (repository: TenantRepository, config?: any) => Resolver
+export type ResolverConstructorConfigType =  any | { admin?: string };
+
+type ResolverConstructor = new (repository: TenantRepository, config?: ResolverConstructorConfigType) => Resolver
 
 type ResolverConstructorConfiguration = {
     classConstructor: ResolverConstructor,
-    config: any
+    config: ResolverConstructorConfigType
 }
 
 export type ResolverStrategyConstructor = ResolverConstructor | ResolverConstructorConfiguration;
@@ -15,7 +17,7 @@ export type ResolverStrategyConstructor = ResolverConstructor | ResolverConstruc
 function resolverFactory(
     server: FastifyInstance,
     resolverStrategies: (ResolverStrategyConstructor)[]
-): (request: FastifyRequest) => Promise<Tenant | undefined> {
+): (request: FastifyRequest) => Promise<Tenant | undefined | { isAdmin: true }> {
     const resolverList = resolverStrategies.map(resolver => {
         if ('classConstructor' in resolver) {
             return new resolver.classConstructor(server.tenantRepository, resolver.config);
@@ -24,11 +26,17 @@ function resolverFactory(
         }
     });
 
-    async function resolve(request: FastifyRequest): Promise<Tenant | undefined> {
+    async function resolve(request: FastifyRequest): Promise<Tenant | undefined | { isAdmin: true }> {
         let i = 0;
         let tenant = undefined;
 
         while (tenant === undefined && i < resolverList.length) {
+            //server.log.debug(`Run resolver ${resolverList[i].constructor.name}`);
+
+            if (resolverList[i].isAdmin(request)) {
+                return { isAdmin: true }
+            }
+
             tenant = await resolverList[i].resolve(request);
             i++;
         }
@@ -45,35 +53,43 @@ export function resolveTenantOnRequest(resolverStrategies: (ResolverStrategyCons
     const resolver = resolverFactory(server, resolverStrategies);
 
     return (request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) => {
+        //server.log.debug(`Run tenant resolver`);
 
+        // TODO Refactor this function
         resolver(request)
-            .then((tenant: Tenant | undefined) => {
+            .then((tenant: Tenant | undefined | { isAdmin: true }) => {
 
-                if (tenant !== undefined) {
-
-                    //Set tenant decorator
-                    request.tenant = tenant
-
-                    //Set tenant db client to decorator
-                    const tenantDB = server.tenantConnectionPool.get(tenant);
-
-                    withTenantDBClient(tenantDB, done);
-
-                } else {
-
-                    if (request.isAdminHost()) {
-                        server.log.debug('Is admin');
-                        done();
-                    } else {
-                        reply.tenantBadRequest();
-                    }
+                if (tenant === undefined) {
+                    throw new Error('Undefined tenant');
                 }
 
+                if ('isAdmin' in tenant) {
+                    // Set isTenantAdmin decorator
+                    request.isTenantAdmin = true;
+
+                    // Continue lifecycle hooks
+                    done();
+                } else {
+                    //server.log.debug(`Request resolved with tenant:`, { tenant });
+
+                    // Set tenant decorator
+                    request.tenant = tenant
+
+                    // Retrieve tenant DB client from connection pool
+                    const tenantDB = server.tenantConnectionPool.get(tenant);
+
+                    // Set current tenant DB client decorator
+                    request.tenantDB = tenantDB;
+
+                    // Set tenantDB to abstract repository
+                    withTenantDBClient(tenantDB, done);
+                }
 
             })
             .catch(error => {
                 server.log.error("Error on tenant resolver");
                 server.log.error(error);
+
                 reply.tenantBadRequest();
             })
     }

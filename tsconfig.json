@@ -1,11 +1,19 @@
 {
     "compilerOptions": {
       "module": "commonjs",
+      "moduleResolution": "node",
       "target": "ES2017",
       "declaration": true,
-      "outDir": "./dist"
+      "outDir": "./dist",
+      "esModuleInterop": true,
+      "noUnusedLocals": true,
+      "strict": true,
+      "noEmitOnError": true,
     },
     "include": [
-        "**/*.ts"
+      "./src/**/*.ts"
+    ],
+    "exclude": [
+      "node_modules"
     ]
 }

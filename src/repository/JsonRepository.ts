@@ -1,12 +1,12 @@
-import { customAlphabet } from "nanoid";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { TenantRepository, Tenant } from "../../types";
+
+import { TenantRepository, Tenant } from "../@types/plugin";
+import { idGenerator } from "../util";
 
 export class JsonRepository implements TenantRepository {
 
     private tenants: Map<string, Tenant> = new Map();
     private filePath: string;
-    private idGenerator: () => string = customAlphabet('1234567890abcdefghilmnopqrstuvzxykj', 10);
 
     constructor(filePath: string) {
         if (!existsSync(filePath)) {
@@ -52,7 +52,7 @@ export class JsonRepository implements TenantRepository {
     }
 
     async add(tenant: Tenant): Promise<Tenant | undefined> {
-        tenant.id = this.idGenerator();
+        tenant.id = idGenerator();
         this.tenants.set(tenant.id, tenant);
 
         this.writeFile();
