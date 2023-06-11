@@ -78,6 +78,10 @@ export class JsonRepository implements TenantRepository {
         return result;
     }
 
+    async init(): Promise<void> {
+        // DO NOTHING
+    }
+
     async shutdown(): Promise<void> {
         this.writeFile();
     }

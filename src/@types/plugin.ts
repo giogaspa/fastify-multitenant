@@ -2,7 +2,7 @@ import { FastifyPluginAsync, FastifyPluginCallback, FastifyPluginOptions } from 
 import { ResolverStrategyConstructor } from '../resolver/resolveTenantOnRequest';
 
 export interface FastifyMultitenantPluginOption extends FastifyPluginOptions {
-  tenantRepository?: TenantRepository,
+  tenantRepository: TenantRepository,
   resolverStrategies: ResolverStrategyConstructor[]
 }
 
@@ -27,6 +27,8 @@ export interface TenantRepository {
   update(tenant: Tenant): Promise<Tenant | undefined>
 
   delete(tenantId: any): Promise<boolean>
+
+  init(): Promise<void>
 
   shutdown(): Promise<void>
 }
