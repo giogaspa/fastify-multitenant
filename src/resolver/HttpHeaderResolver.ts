@@ -12,13 +12,14 @@ export class HttpHeaderResolver extends Resolver {
 
         const { header = DEFAULT_HEADER_NAME } = config;
 
-        this.headerName = header;
+        this.headerName = header.toLowerCase();
     }
 
     async resolve(request: FastifyRequest): Promise<Tenant | undefined> {
         const tenantIdOnHeader = this.getIdentifierFrom(request);
 
-        if (typeof tenantIdOnHeader === 'string' && await this.repository.has(tenantIdOnHeader)) {
+        if (typeof tenantIdOnHeader === 'string'
+            && await this.repository.has(tenantIdOnHeader)) {
             return await this.repository.get(tenantIdOnHeader);
         }
 

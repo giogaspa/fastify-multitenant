@@ -54,6 +54,10 @@ export class InMemoryRepository implements TenantRepository {
         return this.tenants.delete(tenantId);
     }
 
+    async init(): Promise<void> {
+        // DO NOTHING
+    }
+
     async shutdown(): Promise<void> {
         // DO NOTHING
     }
