@@ -27,6 +27,7 @@ class MissingConfigurationParameter extends Error {
 
 export class PostgreSQLRepository implements TenantRepository {
      private client: Client | Pool;
+     private isExternalClient: boolean = false;
      private options: PostgreSQLRepositoryOptions;
 
      constructor(options: PostgreSQLRepositoryConfig) {
@@ -48,6 +49,7 @@ export class PostgreSQLRepository implements TenantRepository {
 
           if (client) {
                this.client = client;
+               this.isExternalClient = true;
                return;
           }
 
@@ -154,14 +156,22 @@ export class PostgreSQLRepository implements TenantRepository {
 
      // TODO Maybe run repository setup action like create db tables if not present
      async setup(): Promise<void> {
-          
+
      }
 
      async init(): Promise<void> {
+          if (this.isExternalClient) {
+               return
+          }
+          
           await this.client.connect();
      }
 
      async shutdown(): Promise<void> {
+          if (this.isExternalClient) {
+               return
+          }
+
           await this.client.end();
      }
 
