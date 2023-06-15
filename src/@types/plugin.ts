@@ -1,13 +1,14 @@
 import { FastifyPluginAsync, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
-import { ResolverStrategyConstructor } from '../resolver/resolveTenantOnRequest';
+import { ResolverStrategyConstructor } from '../resolver/resolverTenantFactory';
 
-export interface FastifyMultitenantPluginOption extends FastifyPluginOptions {
+export interface FastifyMultitenantPluginOptions extends FastifyPluginOptions {
   tenantRepository: TenantRepository,
-  resolverStrategies: ResolverStrategyConstructor[]
+  resolverStrategies: ResolverStrategyConstructor[],
+  ignoreRoutePattern?: RegExp
 }
 
-export type FastifyMultitenantPluginCallback = FastifyPluginCallback<FastifyMultitenantPluginOption>;
-export type FastifyMultitenantPluginAsync = FastifyPluginAsync<FastifyMultitenantPluginOption>;
+export type FastifyMultitenantPluginCallback = FastifyPluginCallback<FastifyMultitenantPluginOptions>;
+export type FastifyMultitenantPluginAsync = FastifyPluginAsync<FastifyMultitenantPluginOptions>;
 
 export type Tenant = {
   id: string,

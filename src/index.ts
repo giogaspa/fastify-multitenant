@@ -2,8 +2,8 @@ import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 
 import "./@types/fastify";
-import { FastifyMultitenantPluginAsync, FastifyMultitenantPluginOption } from "./@types/plugin";
-import { resolveTenantOnRequest } from "./resolver/resolveTenantOnRequest";
+import { FastifyMultitenantPluginAsync, FastifyMultitenantPluginOptions } from "./@types/plugin";
+import { resolverTenantFactory } from "./resolver/resolverTenantFactory";
 import { TenantConnectionPool } from "./repository/TenantConnectionPool";
 import { badRequest } from "./util";
 
@@ -22,8 +22,8 @@ export { RequestTenantRepository } from './requestContext';
 
 const PLUGIN_NAME: string = 'fastify-multitenant-plugin';
 
-const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: FastifyInstance, option: FastifyMultitenantPluginOption) => {
-  const { tenantRepository, resolverStrategies } = option;
+const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: FastifyInstance, options: FastifyMultitenantPluginOptions) => {
+  const { tenantRepository } = options;
 
   //server.log.debug(`Registered Fastify Multitenant Plugin`);
 
@@ -46,7 +46,7 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
   server.decorateReply('tenantBadRequest', badRequest);
 
   // Execute resolver on request
-  server.addHook('onRequest', resolveTenantOnRequest(resolverStrategies, server));
+  server.addHook('onRequest', resolverTenantFactory(server, options));
 
   // On close server disconnect from db
   server.addHook('onClose', async (server) => {

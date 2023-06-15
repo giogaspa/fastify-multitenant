@@ -16,6 +16,12 @@ declare module 'fastify' {
     isTenantAdmin: boolean
   }
 
+  export interface FastifyContextConfig {
+    multitenant?: {
+      exclude?: boolean
+    }
+  }
+
   interface FastifyReply {
     tenantBadRequest: () => FastifyReply,
   }

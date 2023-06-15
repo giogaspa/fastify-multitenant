@@ -1,6 +1,6 @@
 import { FastifyRequest } from "fastify";
 import { Tenant, TenantRepository } from "../@types/plugin";
-import { ResolverConstructorConfigType } from "./resolveTenantOnRequest";
+import { ResolverConstructorConfigType } from "./resolverTenantFactory";
 
 export abstract class Resolver {
     repository: TenantRepository;

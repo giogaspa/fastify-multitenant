@@ -1,8 +1,11 @@
 # :construction: @giogaspa/fastify-multitenant :construction:
 
- Multitenant plugin for Fastify.
+Multitenant plugin for Fastify.
 
- Supports Fastify versions `4.x`
+Supports Fastify versions `4.x`.
+
+Install also [@giogaspa/fastify-multitenant-cli](https://github.com/giogaspa/fastify-multitenant-cli)
+in order to manage setup of admin and tenant DB and to manange migrations.
 
 ## Status
 
@@ -57,10 +60,6 @@ To interact with the tenant database of the current request you can use the `req
 or implement a repository that extends the `RequestTenantRepository` class.
 `RequestTenantRepository` has the property `db` which is the db client of the current tenant.
 
-Install also [@giogaspa/fastify-multitenant-cli](https://github.com/giogaspa/fastify-multitenant-cli)
-in order to manage setup of admin and tenant DB and handle migrations.
-
-
 ```js
 const fastify = require('fastify')();
 const { PostgreSQLRepository, HostnameResolver, HttpHeaderResolver } = require("@giogaspa/fastify-multitenant");
@@ -81,7 +80,8 @@ fastify.register(require('@giogaspa/fastify-multitenant'), {
                 header: 'x-tenant',
             }
         }
-    ]
+    ],
+    ignoreRoutePattern: /^\/auth\// //Regexp. Not mandatory
 })
 
 fastify.listen({ port: 3000 })
@@ -132,11 +132,54 @@ Return true if request is for admin.
 
 ## Custom Tenant Repository
 
-// TODO write section
+Create class that implements `TenantRepository` interface.
+See also `PostgreSQLRepository`, `JsonRepository` or `InMemoryRepository` for real examples.
+
+```js
+export interface TenantRepository {
+  has(tenantId: any): Promise<boolean>
+
+  get(tenantId: any): Promise<Tenant | undefined>
+
+  getByHostname(hostname: string): Promise<Tenant | undefined>
+
+  add(tenant: Tenant): Promise<Tenant | undefined>
+
+  update(tenant: Tenant): Promise<Tenant | undefined>
+
+  delete(tenantId: any): Promise<boolean>
+
+  init(): Promise<void>
+
+  shutdown(): Promise<void>
+}
+```
 
 ## Custom Resolver
 
-// TODO write section
+Create a class that extends `Resolver` and implements `resolve(request: FastifyRequest)` and `getIdentifierFrom(request: FastifyRequest)` methods.
+See also `HostnameResolver`, or `HttpHeaderResolver` for real examples.
+
+```js
+export abstract class Resolver {
+    repository: TenantRepository;
+    config: ResolverConstructorConfigType;
+
+    constructor(repository: TenantRepository, config: ResolverConstructorConfigType = {}) {
+        this.repository = repository;
+        this.config = config;
+    }
+
+    abstract resolve(request: FastifyRequest): Promise<Tenant | undefined>
+
+    abstract getIdentifierFrom(request: FastifyRequest): string | undefined
+
+    isAdmin(request: FastifyRequest): boolean {
+        return this.config.admin
+            && this.getIdentifierFrom(request) === this.config.admin;
+    }
+}
+```
 
 ## How to interact with Tenant DB
 
@@ -168,6 +211,38 @@ class UserRepository extends RequestTenantRepository {
 
     ...
 }
+```
+
+## How to exclude a route/s from tenant resolution
+
+Add `ignoreRoutePattern` regexp into plugin configuration object in order to exclude matching routes:
+
+```js
+fastify.register(require('@giogaspa/fastify-multitenant'), {
+    tenantRepository: repository, 
+    resolverStrategies: [
+        ...
+    ],
+    ignoreRoutePattern: /^\/auth\// //Regexp
+})
+
+```
+
+Or add `{ multitenant: { exclude: true } }` to route `config` object:
+
+```js
+fastify
+      .get('/without_tenant',
+          {
+              config: {
+                  multitenant: {
+                      exclude: true
+                  }
+              },
+          },
+          async function routeHandler() {
+              return 'Route without tenant resolver'
+          })
 ```
 
 ## License
