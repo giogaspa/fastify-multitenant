@@ -26,7 +26,7 @@ class MissingConfigurationParameter extends Error {
 }
 
 export class PostgreSQLRepository implements TenantRepository {
-     private client: Client | Pool;
+     public client: Client | Pool;
      private isExternalClient: boolean = false;
      private options: PostgreSQLRepositoryOptions;
 
@@ -185,7 +185,7 @@ export class PostgreSQLRepository implements TenantRepository {
           await this.client.end();
      }
 
-     createTenantFromRow(row: QueryResultRow): Tenant {
+     protected createTenantFromRow(row: QueryResultRow): Tenant {
           return {
                id: row.id,
                hostname: row.hostname,
