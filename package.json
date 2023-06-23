@@ -1,6 +1,6 @@
 {
   "name": "@giogaspa/fastify-multitenant",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Fastify plugin for multitenancy",
   "author": "Gioacchino Gasparella",
   "license": "MIT",

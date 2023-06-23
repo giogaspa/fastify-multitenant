@@ -31,18 +31,18 @@ export function isTSProject() {
 
 export function getMigrationTemplatePath() {
   if (isTSProject()) {
-    return require.resolve(`@giogaspa/fastify-multitenant/src/migrations/templates/migration.ts`)
+    return require.resolve(`@giogaspa/fastify-multitenant/dist/src/migrations/templates/migration.ts`)
   }
 
-  return require.resolve(`@giogaspa/fastify-multitenant/src/src/migrations/templates/migration.js`)
+  return require.resolve(`@giogaspa/fastify-multitenant/dist/src/migrations/templates/migration.js`)
 }
 
 export function getCreateTenantsTableTemplatePath() {
   if (isTSProject()) {
-    return require.resolve(`@giogaspa/fastify-multitenant/src/migrations/templates/createTenantsTable.ts`)
+    return require.resolve(`@giogaspa/fastify-multitenant/dist/src/migrations/templates/createTenantsTable.ts`)
   }
 
-  return require.resolve(`@giogaspa/fastify-multitenant/src/migrations/templates/createTenantsTable.js`)
+  return require.resolve(`@giogaspa/fastify-multitenant/dist/src/migrations/templates/createTenantsTable.js`)
 }
 
 export function getFormattedDate() {
