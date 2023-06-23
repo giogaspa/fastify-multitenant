@@ -1,6 +1,6 @@
 {
   "name": "@giogaspa/fastify-multitenant",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Fastify plugin for multitenancy",
   "author": "Gioacchino Gasparella",
   "license": "MIT",
@@ -35,26 +35,26 @@
     "@nearform/sql": "^1.10.4",
     "fastify-plugin": "^4.5.0",
     "nanoid": "3.3.4",
-    "pg": "^8.11.0"
+    "pg": "^8.11.0",
+    "yargs-parser": "^21.1.1",
+    "generify": "^4.2.0",
+    "help-me": "^4.2.0",
+    "knex": "^2.4.2",
+    "dotenv": "^16.3.1",
+    "chalk": "^4.1.2",
+    "commist": "^3.2.0",
+    "typescript": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/pg": "^8.10.1",
     "@types/yargs-parser": "^21.0.0",
-    "chalk": "^4.1.2",
-    "commist": "^3.2.0",
     "copyfiles": "^2.4.1",
-    "dotenv": "^16.3.1",
     "fastify": "^4.17.0",
-    "generify": "^4.2.0",
-    "help-me": "^4.2.0",
     "standard": "^17.0.0",
     "tap": "^16.1.0",
     "ts-standard": "^12.0.1",
-    "tsd": "^0.16.0",
-    "typescript": "^4.5.4",
-    "yargs-parser": "^21.1.1",
-    "knex": "^2.4.2"
+    "tsd": "^0.16.0"
   },
   "tsd": {
     "directory": "test"
