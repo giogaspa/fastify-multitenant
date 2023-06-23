@@ -1,0 +1,16 @@
+Usage: multitenant create:admin <MIGRATION_NAME>
+
+Create an admin migration.
+
+OPTS
+
+  --name
+        Migration name
+
+  --folder
+        Main migrations folder name. 
+        DEFAULT: 'migrations' 
+
+  --admin-folder
+        Admin migrations folder name.
+        DEFAULT: 'admin'

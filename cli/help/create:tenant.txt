@@ -1,0 +1,16 @@
+Usage: multitenant create:tenant <MIGRATION_NAME>
+
+Create a tenant migration.
+
+OPTS
+
+  --name
+        Migration name
+
+  --folder
+        Main migrations folder name.
+        DEFAULT: 'migrations'
+
+  --tenant-folder
+        Tenant migrations folder name.
+        DEFAULT: 'tenant'

@@ -1,0 +1,15 @@
+Usage: multitenant setup:tenant
+
+Create new tenant.
+
+OPTS
+
+  --tenant-id
+
+  --tenant-hostname
+
+  --tenant-connection-url
+
+  --migrations-table-name
+        Migrations table name. 
+        DEFAULT: 'migration'

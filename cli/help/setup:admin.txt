@@ -1,0 +1,11 @@
+Usage: multitenant setup:admin
+
+Setup admin tables.
+
+OPTS
+
+  --migrations-table-name
+        Migrations table name. DEFAULT: 'migration'  
+
+  --tenants-table-name
+        Tenants table name. DEFAULT: 'tenant'

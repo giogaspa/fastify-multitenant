@@ -4,7 +4,7 @@ import { Tenant, TenantRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
 import SQL = require("@nearform/sql");
 
-const DEFAULT_TENANT_TABLE_NAME = 'tenant';
+const DEFAULT_TENANT_TABLE_NAME = 'tenants';
 
 export interface PostgreSQLRepositoryConfig {
      tableName?: string;
@@ -26,7 +26,7 @@ class MissingConfigurationParameter extends Error {
 }
 
 export class PostgreSQLRepository implements TenantRepository {
-     private client: Client | Pool;
+     public client: Client | Pool;
      private isExternalClient: boolean = false;
      private options: PostgreSQLRepositoryOptions;
 
@@ -118,7 +118,7 @@ export class PostgreSQLRepository implements TenantRepository {
      }
 
      async add(tenant: Tenant): Promise<Tenant | undefined> {
-          tenant.id = idGenerator();
+          tenant.id = tenant.id || idGenerator();
 
           const query = SQL`
           INSERT INTO ${SQL.quoteIdent(this.tableName)} (id, hostname, connection_string) 
@@ -154,16 +154,26 @@ export class PostgreSQLRepository implements TenantRepository {
           return r.rowCount === 1;
      }
 
-     // TODO Maybe run repository setup action like create db tables if not present
-     async setup(): Promise<void> {
+     //TODO to implement
+     /*      async setup(): Promise<void> {
+               // Check if tenants table exists
+               const query = SQL`
+               SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE    table_name   = ${SQL.quoteIdent(this.tableName)}
+               )`;
+     
+               const r = await this.client.query(query);
+     
+               throw new Error('Unable to find tenants table')
+          } */
 
-     }
-
+     // Connect to admin database
      async init(): Promise<void> {
           if (this.isExternalClient) {
                return
           }
-          
+
           await this.client.connect();
      }
 
@@ -175,7 +185,7 @@ export class PostgreSQLRepository implements TenantRepository {
           await this.client.end();
      }
 
-     createTenantFromRow(row: QueryResultRow): Tenant {
+     protected createTenantFromRow(row: QueryResultRow): Tenant {
           return {
                id: row.id,
                hostname: row.hostname,

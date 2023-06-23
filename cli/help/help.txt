@@ -1,0 +1,13 @@
+Multitenant command line interface, available commands are:
+
+  * setup:admin                                  create admin migrations table and tenants table
+  * setup:tenant                                 create tenant 
+  * create:admin                                 create an admin migration
+  * create:tenant                                create a tenant migration
+  * list                                         list all registered tenant
+  * migrate:admin                                run all admin missing migrations
+  * migrate:tenant                               run all tenant missing migrations
+  * version                                      the current fastify-multitenant-cli version
+  * help                                         help about commands
+
+Launch 'npx multitenant help [command]' to learn more about each command.
