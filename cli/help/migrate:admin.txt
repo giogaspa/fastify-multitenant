@@ -1,0 +1,3 @@
+Usage: multitenant migrate:admin
+
+Run all admin missing migrations.
