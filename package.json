@@ -1,6 +1,6 @@
 {
   "name": "@giogaspa/fastify-multitenant",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Fastify plugin for multitenancy",
   "author": "Gioacchino Gasparella",
   "license": "MIT",
@@ -12,17 +12,20 @@
     "fastify",
     "multi-tenant"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "files": [
     "/dist"
   ],
   "directories": {
     "test": "test"
   },
+  "bin": {
+    "multitenant": "dist/cli/cli.js"
+  },
   "scripts": {
     "test": "npm run lint && npm run unit && npm run test:typescript",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && copyfiles -u -f ./cli/help/*.txt ./dist/cli/help && copyfiles -u -f ./src/migrations/templates/* ./dist/src/migrations/templates/",
     "lint": "standard && npm run lint:typescript",
     "lint:typescript": "ts-standard",
     "test:typescript": "tsd",
@@ -37,12 +40,21 @@
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/pg": "^8.10.1",
+    "@types/yargs-parser": "^21.0.0",
+    "chalk": "^4.1.2",
+    "commist": "^3.2.0",
+    "copyfiles": "^2.4.1",
+    "dotenv": "^16.3.1",
     "fastify": "^4.17.0",
+    "generify": "^4.2.0",
+    "help-me": "^4.2.0",
     "standard": "^17.0.0",
     "tap": "^16.1.0",
     "ts-standard": "^12.0.1",
     "tsd": "^0.16.0",
-    "typescript": "^4.5.4"
+    "typescript": "^4.5.4",
+    "yargs-parser": "^21.1.1",
+    "knex": "^2.4.2"
   },
   "tsd": {
     "directory": "test"

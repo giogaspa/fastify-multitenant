@@ -1,0 +1,3 @@
+Usage: multitenant list
+
+List all tenants.

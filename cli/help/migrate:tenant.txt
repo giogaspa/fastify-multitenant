@@ -1,0 +1,9 @@
+Usage: multitenant migrate:tenant --tenant-id
+
+Run tenant missing migrations.
+
+OPTS
+
+  --tenant-id
+        Tenant id.
+        Use '*' to run migrations for all tenants
