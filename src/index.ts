@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 
 import "./@types/fastify";
-import { FastifyMultitenantPluginAsync, FastifyMultitenantPluginOptions, Tenant } from "./@types/plugin";
+import { FastifyMultitenantPluginAsync, FastifyMultitenantPluginOptions } from "./@types/plugin";
 import { resolverTenantFactory } from "./resolver/resolverTenantFactory";
 import { TenantConnectionPool } from "./repository/TenantConnectionPool";
 import { badRequest } from "./util";
@@ -20,7 +20,8 @@ export { Resolver } from './resolver/Resolver';
 // Export abstract tenant request repository
 export { RequestTenantRepository } from './requestContext';
 
-export { Tenant }
+export { Tenant } from "./@types/plugin";
+export { createMigrationsTableQuery as postgresCreateMigrationsTableQuery } from './migrations/postgres/util'
 
 const PLUGIN_NAME: string = 'fastify-multitenant-plugin';
 
@@ -49,10 +50,10 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
 
   // TODO to implement...maybe
   // When fastify is ready run repository setup()
-/*   server.addHook('onReady', async function () {
-    // During repository setup check table existence or other stuff
-    await this.tenantRepository.setup()
-  }) */
+  /*   server.addHook('onReady', async function () {
+      // During repository setup check table existence or other stuff
+      await this.tenantRepository.setup()
+    }) */
 
   // Execute resolver on request
   server.addHook('onRequest', resolverTenantFactory(server, options));
