@@ -1,6 +1,6 @@
 import { Client, ClientConfig, Pool, PoolConfig, QueryResultRow } from "pg";
 
-import { Tenant, TenantRepository } from "../@types/plugin";
+import { Tenant, TenantsRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
 import SQL = require("@nearform/sql");
 
@@ -25,7 +25,7 @@ class MissingConfigurationParameter extends Error {
      }
 }
 
-export class PostgreSQLRepository implements TenantRepository {
+export class PostgreSQLRepository implements TenantsRepository {
      public client: Client | Pool;
      private isExternalClient: boolean = false;
      private options: PostgreSQLRepositoryOptions;

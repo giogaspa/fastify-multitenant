@@ -1,11 +1,11 @@
 
-import { Tenant, TenantRepository } from "../@types/plugin";
+import { Tenant, TenantsRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
 
 
 const DEFAULT_TENANTS: Map<string, Tenant> = new Map();
 
-export class InMemoryRepository implements TenantRepository {
+export class InMemoryRepository implements TenantsRepository {
 
     private tenants: Map<string, Tenant> = DEFAULT_TENANTS;
 

@@ -33,10 +33,10 @@ yarn add @giogaspa/fastify-multitenant
 ## Usage
 
 Require `@giogaspa/fastify-multitenant` and register as fastify plugin.  
-This will decorate your `fastify` instance with `tenantRepository` and fastify `request` 
+This will decorate your `fastify` instance with `tenantsRepository` and fastify `request` 
 is decorate with `tenant`, `tenantDB` and `isTenantAdmin`.
 
-Tenant information is managed through an object implementing the `TenantRepository` interface.  
+Tenant information is managed through an object implementing the `TenantsRepository` interface.  
 Currently the plugin provides implementation of these repositories:
 
 - InMemoryRepository (useful for testing)
@@ -44,7 +44,7 @@ Currently the plugin provides implementation of these repositories:
 - PostgreSQLRepository
 - MySQLRepository **(under development)**
 
-If you want you can create your own custom repository, you just need to implement `TenantRepository`
+If you want you can create your own custom repository, you just need to implement `TenantsRepository`
 and pass the created repository in the plugin configuration object `FastifyMultitenantPluginOption`.
 
 To determine the current tenant, an array of tenant resolvers must be passed (at least one resolver is needed)
@@ -56,8 +56,8 @@ Currently the plugin provides these resolvers:
 
 If you want to implement your own resolver extend the `Resolver` class.
 
-To interact with the tenant database of the current request you can use the `request.tenantDB` object
-or implement a repository that extends the `RequestTenantRepository` class.
+To interact with the tenant database of the current request you can use the `request.tenantDB` object,
+use `getRequestTenantDB()` function or implement a repository that extends the `RequestTenantRepository` class.
 `RequestTenantRepository` has the property `db` which is the db client of the current tenant.
 
 ```js
@@ -70,14 +70,14 @@ const adminRepository = new PostgreSQLRepository({ clientConfig: { connectionStr
 //const adminRepository = new InMemoryRepository();
 
 fastify.register(require('@giogaspa/fastify-multitenant'), {
-    tenantRepository: adminRepository, // Repository to retrieve tenant connection information. 
+    tenantsRepository: adminRepository, // Repository to retrieve tenant connection information. 
     resolverStrategies: [ // Strategies to recognize the tenant
         HostnameResolver, // Hostname strategy
         {
             classConstructor: HttpHeaderResolver, // Header parameter strategy
             config: {
                 admin: 'admin' // admin tenant identifier
-                header: 'x-tenant',
+                header: 'x-tenant-id',
             }
         }
     ],
@@ -87,12 +87,12 @@ fastify.register(require('@giogaspa/fastify-multitenant'), {
 fastify.listen({ port: 3000 })
 ```
 
-### fastify.tenantRepository
+### fastify.tenantsRepository
 
 Repository class to interact with tenants
 
 ```js
-interface TenantRepository {
+interface TenantsRepository {
   has(tenantId: any): Promise<boolean>
 
   get(tenantId: any): Promise<Tenant | undefined>
@@ -132,11 +132,11 @@ Return true if request is for admin.
 
 ## Custom Tenant Repository
 
-Create class that implements `TenantRepository` interface.
+Create class that implements `TenantsRepository` interface.
 See also `PostgreSQLRepository`, `JsonRepository` or `InMemoryRepository` for real examples.
 
 ```js
-export interface TenantRepository {
+export interface TenantsRepository {
   has(tenantId: any): Promise<boolean>
 
   get(tenantId: any): Promise<Tenant | undefined>
@@ -162,10 +162,10 @@ See also `HostnameResolver`, or `HttpHeaderResolver` for real examples.
 
 ```js
 export abstract class Resolver {
-    repository: TenantRepository;
+    repository: TenantsRepository;
     config: ResolverConstructorConfigType;
 
-    constructor(repository: TenantRepository, config: ResolverConstructorConfigType = {}) {
+    constructor(repository: TenantsRepository, config: ResolverConstructorConfigType = {}) {
         this.repository = repository;
         this.config = config;
     }
@@ -219,7 +219,7 @@ Add `ignoreRoutePattern` regexp into plugin configuration object in order to exc
 
 ```js
 fastify.register(require('@giogaspa/fastify-multitenant'), {
-    tenantRepository: repository, 
+    tenantsRepository: repository, 
     resolverStrategies: [
         ...
     ],

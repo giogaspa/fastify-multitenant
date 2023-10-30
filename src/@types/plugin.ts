@@ -2,7 +2,7 @@ import { FastifyPluginAsync, FastifyPluginCallback, FastifyPluginOptions } from 
 import { ResolverStrategyConstructor } from '../resolver/resolverTenantFactory';
 
 export interface FastifyMultitenantPluginOptions extends FastifyPluginOptions {
-  tenantRepository: TenantRepository,
+  tenantsRepository: TenantsRepository,
   resolverStrategies: ResolverStrategyConstructor[],
   ignoreRoutePattern?: RegExp
 }
@@ -16,7 +16,7 @@ export type Tenant = {
   connectionString: string
 }
 
-export interface TenantRepository {
+export interface TenantsRepository {
   has(tenantId: any): Promise<boolean>
 
   get(tenantId: any): Promise<Tenant | undefined>

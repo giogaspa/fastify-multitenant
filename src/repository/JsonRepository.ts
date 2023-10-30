@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
-import { TenantRepository, Tenant } from "../@types/plugin";
+import { TenantsRepository, Tenant } from "../@types/plugin";
 import { idGenerator } from "../util";
 
-export class JsonRepository implements TenantRepository {
+export class JsonRepository implements TenantsRepository {
 
     private tenants: Map<string, Tenant> = new Map();
     private filePath: string;

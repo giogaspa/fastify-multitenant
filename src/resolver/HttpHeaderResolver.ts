@@ -1,13 +1,13 @@
 import { FastifyRequest } from "fastify";
 import { Resolver } from "./Resolver";
-import { Tenant, TenantRepository } from "../@types/plugin";
+import { Tenant, TenantsRepository } from "../@types/plugin";
 
 const DEFAULT_HEADER_NAME = 'x-tenant-id';
 
 export class HttpHeaderResolver extends Resolver {
     private headerName: string;
 
-    constructor(repository: TenantRepository, config: { header?: string } = {}) {
+    constructor(repository: TenantsRepository, config: { header?: string } = {}) {
         super(repository, config);
 
         const { header = DEFAULT_HEADER_NAME } = config;
