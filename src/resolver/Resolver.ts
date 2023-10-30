@@ -1,12 +1,12 @@
 import { FastifyRequest } from "fastify";
-import { Tenant, TenantRepository } from "../@types/plugin";
+import { Tenant, TenantsRepository } from "../@types/plugin";
 import { ResolverConstructorConfigType } from "./resolverTenantFactory";
 
 export abstract class Resolver {
-    repository: TenantRepository;
+    repository: TenantsRepository;
     config: ResolverConstructorConfigType;
 
-    constructor(repository: TenantRepository, config: ResolverConstructorConfigType = {}) {
+    constructor(repository: TenantsRepository, config: ResolverConstructorConfigType = {}) {
         this.repository = repository;
         this.config = config;
     }

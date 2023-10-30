@@ -8,12 +8,12 @@ export function withTenantDBClient(tenantDB: Pool, done: HookHandlerDoneFunction
     return asyncLocalStorage.run(tenantDB, done);
 }
 
-export function getTenantDBClient(): Pool {
+export function getRequestTenantDB(): Pool {
     return <Pool>asyncLocalStorage.getStore();
 }
 
 export abstract class RequestTenantRepository {
     get db(): Pool {
-        return getTenantDBClient();
+        return getRequestTenantDB();
     }
 }

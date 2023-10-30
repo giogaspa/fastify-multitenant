@@ -18,7 +18,7 @@ export { HttpHeaderResolver } from './resolver/HttpHeaderResolver';
 export { Resolver } from './resolver/Resolver';
 
 // Export abstract tenant request repository
-export { RequestTenantRepository } from './requestContext';
+export { RequestTenantRepository, getRequestTenantDB } from './requestContext';
 
 export { Tenant } from "./@types/plugin";
 export { createMigrationsTableQuery as postgresCreateMigrationsTableQuery } from './migrations/postgres/util'
@@ -26,12 +26,12 @@ export { createMigrationsTableQuery as postgresCreateMigrationsTableQuery } from
 const PLUGIN_NAME: string = 'fastify-multitenant-plugin';
 
 const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: FastifyInstance, options: FastifyMultitenantPluginOptions) => {
-  const { tenantRepository } = options;
+  const { tenantsRepository } = options;
 
   //server.log.debug(`Registered Fastify Multitenant Plugin`);
 
-  await tenantRepository.init();
-  server.decorate('tenantRepository', tenantRepository);
+  await tenantsRepository.init();
+  server.decorate('tenantsRepository', tenantsRepository);
 
   // Add tenant connection pool
   server.decorate('tenantConnectionPool', new TenantConnectionPool(server));
@@ -52,7 +52,7 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
   // When fastify is ready run repository setup()
   /*   server.addHook('onReady', async function () {
       // During repository setup check table existence or other stuff
-      await this.tenantRepository.setup()
+      await this.tenantsRepository.setup()
     }) */
 
   // Execute resolver on request
@@ -60,7 +60,7 @@ const fastifyMultitenant: FastifyMultitenantPluginAsync = async (server: Fastify
 
   // On close server disconnect from db
   server.addHook('onClose', async (server) => {
-    await server.tenantRepository.shutdown();
+    await server.tenantsRepository.shutdown();
     await server.tenantConnectionPool.shutdown();
   });
 

@@ -1,12 +1,12 @@
 
 import { Client, Pool } from 'pg'
 import { TenantConnectionPool } from '../repository/TenantConnectionPool'
-import { Tenant, TenantRepository } from './plugin'
+import { Tenant, TenantsRepository } from './plugin'
 
 
 declare module 'fastify' {
   export interface FastifyInstance {
-    tenantRepository: TenantRepository
+    tenantsRepository: TenantsRepository
     tenantConnectionPool: TenantConnectionPool
   }
 

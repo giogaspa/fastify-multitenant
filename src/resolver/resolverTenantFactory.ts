@@ -1,13 +1,13 @@
 import { FastifyInstance, FastifyRequest, FastifyReply, HookHandlerDoneFunction } from "fastify";
 
 import { withTenantDBClient } from "../requestContext";
-import { FastifyMultitenantPluginOptions, Tenant, TenantRepository } from "../@types/plugin";
+import { FastifyMultitenantPluginOptions, Tenant, TenantsRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
 import { CannotFindTenantError } from "../errors";
 
 export type ResolverConstructorConfigType = any | { admin?: string };
 
-type ResolverConstructor = new (repository: TenantRepository, config?: ResolverConstructorConfigType) => Resolver
+type ResolverConstructor = new (repository: TenantsRepository, config?: ResolverConstructorConfigType) => Resolver
 
 type ResolverConstructorConfiguration = {
     classConstructor: ResolverConstructor,
@@ -19,7 +19,7 @@ export type ResolverStrategyConstructor = ResolverConstructor | ResolverConstruc
 type resolvedTenant = Promise<Tenant | undefined | { isAdmin: true }>;
 type resolveTenantFunction = (request: FastifyRequest) => resolvedTenant;
 
-function makeResolverList(strategies: (ResolverStrategyConstructor)[], repository: TenantRepository) {
+function makeResolverList(strategies: (ResolverStrategyConstructor)[], repository: TenantsRepository) {
     return strategies.map(resolver => {
         if ('classConstructor' in resolver) {
             return new resolver.classConstructor(repository, resolver.config);
@@ -30,7 +30,7 @@ function makeResolverList(strategies: (ResolverStrategyConstructor)[], repositor
 }
 
 function resolverFactory(server: FastifyInstance, resolverStrategies: (ResolverStrategyConstructor)[]): resolveTenantFunction {
-    const resolverList = makeResolverList(resolverStrategies, server.tenantRepository);
+    const resolverList = makeResolverList(resolverStrategies, server.tenantsRepository);
 
     return async function resolve(request: FastifyRequest): resolvedTenant {
         let i = 0;
