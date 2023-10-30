@@ -1,6 +1,6 @@
 {
   "name": "@giogaspa/fastify-multitenant",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Fastify plugin for multitenancy",
   "author": "Gioacchino Gasparella",
   "license": "MIT",
@@ -26,6 +26,7 @@
   "scripts": {
     "test": "npm run lint && npm run unit && npm run test:typescript",
     "build": "tsc -p tsconfig.json && copyfiles -u -f ./cli/help/*.txt ./dist/cli/help && copyfiles -u -f ./src/migrations/templates/* ./dist/src/migrations/templates/",
+    "publish": "rimraf dist && npm run build && npm publish",
     "lint": "standard && npm run lint:typescript",
     "lint:typescript": "ts-standard",
     "test:typescript": "tsd",
@@ -33,17 +34,17 @@
   },
   "dependencies": {
     "@nearform/sql": "^1.10.4",
+    "chalk": "^4.1.2",
+    "commist": "^3.2.0",
+    "dotenv": "^16.3.1",
     "fastify-plugin": "^4.5.0",
-    "nanoid": "3.3.4",
-    "pg": "^8.11.0",
-    "yargs-parser": "^21.1.1",
     "generify": "^4.2.0",
     "help-me": "^4.2.0",
     "knex": "^2.4.2",
-    "dotenv": "^16.3.1",
-    "chalk": "^4.1.2",
-    "commist": "^3.2.0",
-    "typescript": "^4.5.4"
+    "nanoid": "3.3.4",
+    "pg": "^8.11.0",
+    "typescript": "^4.5.4",
+    "yargs-parser": "^21.1.1"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
@@ -51,6 +52,7 @@
     "@types/yargs-parser": "^21.0.0",
     "copyfiles": "^2.4.1",
     "fastify": "^4.17.0",
+    "rimraf": "^5.0.5",
     "standard": "^17.0.0",
     "tap": "^16.1.0",
     "ts-standard": "^12.0.1",
