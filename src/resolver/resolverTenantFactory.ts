@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply, HookHandlerDoneFunction } from "fastify";
 
-import { withTenantDBClient } from "../requestContext";
+import { withTenant } from "../requestContext";
 import { FastifyMultitenantPluginOptions, Tenant, TenantsRepository } from "../@types/plugin";
 import { Resolver } from "./Resolver";
 import { CannotFindTenantError } from "../errors";
@@ -110,8 +110,11 @@ export function resolverTenantFactory(server: FastifyInstance, options: FastifyM
                         // Set current tenant DB client decorator
                         request.tenantDB = tenantDB;
 
-                        // Set tenantDB to abstract repository
-                        withTenantDBClient(tenantDB, done);
+                        // Set tenant to abstract repository
+                        withTenant({
+                            tenant: tenant,
+                            db: tenantDB
+                        }, done);
                     }
 
                 })
