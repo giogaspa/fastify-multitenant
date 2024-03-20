@@ -1,10 +1,10 @@
 import { Client, ClientConfig, Pool, PoolConfig, QueryResultRow } from "pg";
+import SQL = require("@nearform/sql");
 
 import { Tenant, TenantsRepository } from "../@types/plugin";
 import { idGenerator } from "../util";
-import SQL = require("@nearform/sql");
 
-const DEFAULT_TENANT_TABLE_NAME = 'tenants';
+export const DEFAULT_TENANTS_TABLE_NAME = 'tenants';
 
 export interface PostgreSQLRepositoryConfig {
      tableName?: string;
@@ -32,7 +32,7 @@ export class PostgreSQLRepository implements TenantsRepository {
 
      constructor(options: PostgreSQLRepositoryConfig) {
           const {
-               tableName = DEFAULT_TENANT_TABLE_NAME,
+               tableName = DEFAULT_TENANTS_TABLE_NAME,
                clientConfig,
                client
           } = options;

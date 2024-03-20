@@ -23,6 +23,6 @@ declare module 'fastify' {
   }
 
   interface FastifyReply {
-    tenantBadRequest: () => FastifyReply,
+    tenantBadRequest: (this: FastifyReply) => void,
   }
 }

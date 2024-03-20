@@ -1,4 +1,4 @@
-import { FastifyPluginAsync, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
+import { FastifyPluginOptions } from 'fastify';
 import { ResolverStrategyConstructor } from '../resolver/resolverTenantFactory';
 
 export type FastifyMultitenantPluginOptions = FastifyPluginOptions & {
@@ -6,9 +6,6 @@ export type FastifyMultitenantPluginOptions = FastifyPluginOptions & {
   resolverStrategies: ResolverStrategyConstructor[],
   ignoreRoutePattern?: RegExp
 }
-
-export type FastifyMultitenantPluginCallback = FastifyPluginCallback<FastifyMultitenantPluginOptions>;
-export type FastifyMultitenantPluginAsync = FastifyPluginAsync<FastifyMultitenantPluginOptions>;
 
 export type Tenant = {
   id: string,

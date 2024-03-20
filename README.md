@@ -2,7 +2,7 @@
 
 Multitenant plugin for Fastify.
 
-Supports Fastify versions `4.x`.
+Supports Fastify versions `^4.26.2`.
 
 Install also [@giogaspa/fastify-multitenant-cli](https://github.com/giogaspa/fastify-multitenant-cli)
 in order to manage setup of admin and tenant DB and to manange migrations.
@@ -56,7 +56,7 @@ Currently the plugin provides these resolvers:
 
 If you want to implement your own resolver extend the `Resolver` class.
 
-To interact with the tenant database of the current request you can use the `request.tenantDB` object,
+To interact with the tenant database of the current request, you can use the `request.tenantDB` object,
 use `getRequestTenantDB()` function or implement a repository that extends the `RequestTenantRepository` class.
 `RequestTenantRepository` has the property `db` which is the db client of the current tenant.
 
@@ -119,6 +119,17 @@ export type Tenant = {
   hostname: string,
   connectionString: string
 }
+```
+
+### getRequestTenantDB()
+
+Get resolved tenant of current request.
+If the Tenant was not found, or we are not using the `getRequestTenantDB` within a request, the `CantResolveTenant` error is thrown.
+
+```js
+import { getRequestTenant } from '@giogaspa/fastify-multitenant'
+
+const currentTenant: Tenant = getRequestTenant()
 ```
 
 ### request.tenantDB
@@ -247,4 +258,4 @@ fastify
 
 ## License
 
-Licensed under [MIT](./LICENSE).<br/>
+Licensed under [MIT](./LICENSE).
