@@ -83,7 +83,7 @@ fastify.register(multiTenantPlugin, {
 | `resolveTenantConfig`      | `(tenantId: string) => Promise<TenantConfig>`              | Fetch tenant-specific configuration                                         |
 | `resolverCache.enabled`    | `boolean`                                                  | Enable caching of resolved tenant configs                                   |
 | `resolverCache.expirationMs` | `number`                                                  | Time-to-live for cached tenant config in milliseconds                       |
-| `resourceFactories`        | `Record<string, ResourceFactory | ResourceFactoryConfig>`  | Defines how to create tenant-specific services                              |
+| `resourceFactories`        | `Record<string, ResourceFactory \| ResourceFactoryConfig>`  | Defines how to create tenant-specific services                              |
 
 ### `ResourceFactoryConfig`
 
