@@ -1,261 +1,253 @@
-# :construction: @giogaspa/fastify-multitenant :construction:
+# Fastify Multi-Tenancy Plugin
 
-Multitenant plugin for Fastify.
+A flexible and fully pluggable multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
-Supports Fastify versions `^4.26.2`.
+## Features
+- 🔍 **Composable tenant detection** via functional identifier strategies (e.g., `headerIdentifierStrategy`, `cookieIdentifierStrategy`)
+- 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
+- ⚡ **Per-resource connection caching and expiration**
+- 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
+- 🔁 **Access other resources inside a resource (composability)**
+- 🧹 **Graceful connection cleanup with idle expiration**
+- 🪝 **Lifecycle hooks per resource**
+- ✨ Written in **TypeScript** with full type safety and autocompletion
+### Da valutare:
+- 🔧 **Run migrations and seed per tenant or main database**
+- 🌱 **Dynamically register tenants via API**
 
-Install also [@giogaspa/fastify-multitenant-cli](https://github.com/giogaspa/fastify-multitenant-cli)
-in order to manage setup of admin and tenant DB and to manange migrations.
+> 💡 The plugin is **not tied to any specific database solution**. You can use it to manage connections to PostgreSQL, MySQL, Redis, file systems, third-party APIs, or in-memory resources like JavaScript `Map` instances.
 
-## Status
-
-Pre-alpha.
-
-**This is a work in progress and api could change quickly!!!**  
-**The plugin is not ready for production, use at your own risk!**  
-
-Please look at the develop branch for ongoing development.
-
-## Install
-
-Using npm:
-
-``` shell
-npm i @giogaspa/fastify-multitenant
+## Installation
+```sh
+npm install @giogaspa/fastify-multitenant
 ```
 
-Using yarn:
+## 🤖 How It Works
 
-``` shell
-yarn add @giogaspa/fastify-multitenant
+1. **Tenant Identifier Strategies** → figure out which tenant is making the request.
+2. **Tenant Config Resolver** → fetches the tenant's configuration (like DB URL, API keys).
+3. **Resource Factories** → use that configuration to create tenant-specific resources.
+
+---
+
+## 🔧 Full Example Configuration
+```ts
+import Fastify from 'fastify';
+import multiTenantPlugin, {
+  headerIdentifierStrategy,
+  queryParamIdentifierStrategy,
+  customIdentifierStrategy
+} from '@giogaspa/fastify-multitenant';
+import { PrismaClient } from '@prisma/client';
+import { OpenAI } from 'openai';
+
+const fastify = Fastify();
+
+fastify.register(multiTenantPlugin, {
+  tenantIdentifierStrategies: [
+    headerIdentifierStrategy('X-TENANT-ID'),
+    queryParamIdentifierStrategy('tenant_id'),
+    customIdentifierStrategy(req => req.cookies?.tenant_id)
+  ],
+  resolveTenantConfig: async (tenantId) => {
+    return {
+      id: tenantId,
+      db_url: `postgres://localhost:5432/${tenantId}`,
+      openaiKey: 'sk-xxx',
+      mailerConfig: { from: 'support@example.com' }
+    };
+  },
+  resolverCache: {
+    enabled: true,
+    expirationMs: 1000 * 60 * 10 // 10 minutes
+  },
+  resourceFactories: {
+    db: {
+      factory: async ({ config }) => new PrismaClient({ datasources: { db: { url: config.db_url } } }),
+      cache: true,
+      expirationMs: 1000 * 60 * 30
+    },
+    openai: async ({ config }) => new OpenAI({ apiKey: config.openaiKey }),
+    mailer: async ({ config }) => createMailer(config.mailerConfig)
+  }
+});
 ```
 
-## Usage
+---
 
-Require `@giogaspa/fastify-multitenant` and register as fastify plugin.  
-This will decorate your `fastify` instance with `tenantsRepository` and fastify `request` 
-is decorate with `tenant`, `tenantDB` and `isTenantAdmin`.
+## ⚙️ Plugin Options Reference
 
-Tenant information is managed through an object implementing the `TenantsRepository` interface.  
-Currently the plugin provides implementation of these repositories:
+| Option                      | Type                                                       | Description                                                                 |
+|-----------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `tenantIdentifierStrategies` | `Array<IdentifierStrategy>`                                | Strategies to extract tenant ID from request                                |
+| `resolveTenantConfig`      | `(tenantId: string) => Promise<TenantConfig>`              | Fetch tenant-specific configuration                                         |
+| `resolverCache.enabled`    | `boolean`                                                  | Enable caching of resolved tenant configs                                   |
+| `resolverCache.expirationMs` | `number`                                                  | Time-to-live for cached tenant config in milliseconds                       |
+| `resourceFactories`        | `Record<string, ResourceFactory | ResourceFactoryConfig>`  | Defines how to create tenant-specific services                              |
 
-- InMemoryRepository (useful for testing)
-- JsonRepository
-- PostgreSQLRepository
-- MySQLRepository **(under development)**
+### `ResourceFactoryConfig`
 
-If you want you can create your own custom repository, you just need to implement `TenantsRepository`
-and pass the created repository in the plugin configuration object `FastifyMultitenantPluginOption`.
+| Property         | Type                                    | Description                                           |
+|------------------|-----------------------------------------|-------------------------------------------------------|
+| `factory`        | `(options: FactoryOptions) => Promise<any>` | Function that creates the resource                    |
+| `cache`          | `boolean`                               | Whether to cache the resource (default: true)         |
+| `expirationMs`   | `number`                                | TTL for idle resource cleanup                         |
+| `hooks`          | `object`                                | Lifecycle hooks (`onCreated`, `onError`, `onExpired`) |
 
-To determine the current tenant, an array of tenant resolvers must be passed (at least one resolver is needed)
-in the plugin configuration.  
-Currently the plugin provides these resolvers:
+---
 
-- HostnameResolver
-- HttpHeaderResolver
+## 🤖 In deep explanation
 
-If you want to implement your own resolver extend the `Resolver` class.
+...
 
-To interact with the tenant database of the current request, you can use the `request.tenantDB` object,
-use `getRequestTenantDB()` function or implement a repository that extends the `RequestTenantRepository` class.
-`RequestTenantRepository` has the property `db` which is the db client of the current tenant.
+---
 
-```js
-const fastify = require('fastify')();
-const { PostgreSQLRepository, HostnameResolver, HttpHeaderResolver } = require("@giogaspa/fastify-multitenant");
+## 🔍 Tenant Identifier Strategies (Step 1)
+Tenant identification is configured using an array of detector functions. These are called in order until one returns a valid tenant ID.
 
-// Instantiate admin repository
-const adminRepository = new PostgreSQLRepository({ clientConfig: { connectionString: "postgresql://postgres:1234@localhost:5432/postgres?schema=public" } });
-//const adminRepository = new JsonRepository(join(__dirname, '..','.tenants.json'));
-//const adminRepository = new InMemoryRepository();
-
-fastify.register(require('@giogaspa/fastify-multitenant'), {
-    tenantsRepository: adminRepository, // Repository to retrieve tenant connection information. 
-    resolverStrategies: [ // Strategies to recognize the tenant
-        HostnameResolver, // Hostname strategy
-        {
-            classConstructor: HttpHeaderResolver, // Header parameter strategy
-            config: {
-                admin: 'admin' // admin tenant identifier
-                header: 'x-tenant-id',
-            }
-        }
-    ],
-    ignoreRoutePattern: /^\/auth\// //Regexp. Not mandatory
-})
-
-fastify.listen({ port: 3000 })
+### Built-in strategies
+```ts
+headerIdentifierStrategy(headerName: string): IdentifierStrategy
+cookieIdentifierStrategy(cookieName: string): IdentifierStrategy
+queryParamIdentifierStrategy(param: string): IdentifierStrategy
+customIdentifierStrategy(fn: (req: FastifyRequest) => string | undefined): IdentifierStrategy
 ```
 
-### fastify.tenantsRepository
+### Example:
+```ts
+tenantIdentifierStrategies: [
+  headerIdentifierStrategy('X-TENANT-ID'),
+  queryParamIdentifierStrategy('tenant_id'),
+  customIdentifierStrategy((req) => req.headers['x-fallback-tenant'])
+]
+```
 
-Repository class to interact with tenants
+> ⚠️ Order matters. First match wins.
 
-```js
-interface TenantsRepository {
-  has(tenantId: any): Promise<boolean>
+### Custom strategies
+You can also write your own:
+```ts
+const myStrategy = () => (req) => req.headers['my-header'];
+```
 
-  get(tenantId: any): Promise<Tenant | undefined>
+---
 
-  getByHostname(hostname: string): Promise<Tenant | undefined>
+## 🔧 Tenant Config Resolver (Step 2)
+After a tenant ID is detected, the plugin calls `resolveTenantConfig(tenantId)` to fetch **configuration** for that tenant.
 
-  add(tenant: Tenant): Promise<Tenant | undefined>
+### Purpose
+The tenant config should include:
+- Database connection string
+- API keys (e.g., OpenAI, Stripe)
+- Feature flags or environment settings
 
-  update(tenant: Tenant): Promise<Tenant | undefined>
-
-  delete(tenantId: any): Promise<boolean>
-
-  shutdown(): Promise<void>
+### Example
+```ts
+resolveTenantConfig: async (tenantId) => {
+  return {
+    id: tenantId,
+    db_url: `postgres://.../${tenantId}`,
+    openaiKey: 'sk-xxx',
+    mailerConfig: { from: 'team@example.com' }
+  }
 }
 ```
 
-### request.tenant
+This config is passed to all resource factories for that tenant.
 
-Get tenant of current request
-
-```js
-export type Tenant = {
-  id: string,
-  hostname: string,
-  connectionString: string
+### 🔁 Configuration caching
+You can enable caching for resolved tenant configs:
+```ts
+resolverCache: {
+  enabled: true,
+  expirationMs: 1000 * 60 * 10 // 10 minutes
 }
 ```
 
-### getRequestTenantDB()
-
-Get resolved tenant of current request.
-If the Tenant was not found, or we are not using the `getRequestTenantDB` within a request, the `CantResolveTenant` error is thrown.
-
-```js
-import { getRequestTenant } from '@giogaspa/fastify-multitenant'
-
-const currentTenant: Tenant = getRequestTenant()
+### 🔧 Programmatic reset
+```ts
+await fastify.invalidateTenantConfig('tenantId');
 ```
 
-### request.tenantDB
+---
 
-DB client of resolved tenant. The type of client depends on repository configuration.  
-`pg` library clients are supported for now, but clients for `mysql` and other db's will also be supported in the future.
+## 🔨 Resource Factories (Step 3)
+Register one or more resources per tenant. Factories can reference other already-initialized resources (declared before them).
 
-### request.isTenantAdmin
-
-Return true if request is for admin.
-
-## Custom Tenant Repository
-
-Create class that implements `TenantsRepository` interface.
-See also `PostgreSQLRepository`, `JsonRepository` or `InMemoryRepository` for real examples.
-
-```js
-export interface TenantsRepository {
-  has(tenantId: any): Promise<boolean>
-
-  get(tenantId: any): Promise<Tenant | undefined>
-
-  getByHostname(hostname: string): Promise<Tenant | undefined>
-
-  add(tenant: Tenant): Promise<Tenant | undefined>
-
-  update(tenant: Tenant): Promise<Tenant | undefined>
-
-  delete(tenantId: any): Promise<boolean>
-
-  init(): Promise<void>
-
-  shutdown(): Promise<void>
-}
+#### Factory Signature
+```ts
+({ tenantId, config, resources }) => Promise<any>
 ```
+- `tenantId`: current tenant ID
+- `config`: result of `resolveTenantConfig`
+- `resources`: other initialized resources so far (in declaration order)
 
-## Custom Resolver
-
-Create a class that extends `Resolver` and implements `resolve(request: FastifyRequest)` and `getIdentifierFrom(request: FastifyRequest)` methods.
-See also `HostnameResolver`, or `HttpHeaderResolver` for real examples.
-
-```js
-export abstract class Resolver {
-    repository: TenantsRepository;
-    config: ResolverConstructorConfigType;
-
-    constructor(repository: TenantsRepository, config: ResolverConstructorConfigType = {}) {
-        this.repository = repository;
-        this.config = config;
+### Example
+```ts
+resourceFactories: {
+  db: {
+    factory: async ({ config }) => new PrismaClient({ ... }),
+    cache: true,
+    expirationMs: 1800000,
+    hooks: {
+      onCreated: ({ tenantId }) => { ... },
+      onError: ({ tenantId, error }) => { ... },
+      onExpired: ({ tenantId }) => { ... }
     }
-
-    abstract resolve(request: FastifyRequest): Promise<Tenant | undefined>
-
-    abstract getIdentifierFrom(request: FastifyRequest): string | undefined
-
-    isAdmin(request: FastifyRequest): boolean {
-        return this.config.admin
-            && this.getIdentifierFrom(request) === this.config.admin;
+  },
+  mailer: {
+    factory: async ({ config, resources }) => {
+      const settings = await resources.db.settings.findFirst();
+      return createMailer({ ...config.mailerConfig, from: settings.sender });
     }
+  }
 }
 ```
 
-## How to interact with Tenant DB
+---
 
-There are two ways to interact with the tenant database:
-the first is through `request.tenantDB` and the second is to extend the `RequestTenantRepository` as example below:
+## Fastify Decorations
 
-```js
-class UserRepository extends RequestTenantRepository {
-    private name = 'users';
+| Property         | Type          | Description                                    |
+|-----------------|---------------|------------------------------------------------|
+| `request.tenant` | `Record<string, any>` | Tenant-scoped resources for the current request |
+| `fastify.tenant` | `() => Record<string, any>` | Global accessor for tenant resources in current request |
+| `fastify.invalidateTenantConfig(id)` | `Promise<void>` | Clears a cached tenant config for a given ID |
 
-    async create(user: User): Promise<boolean>{
-        const query = SQL`
-        INSERT INTO ${SQL.quoteIdent(this.name)} (id, first_name, last_name, email) 
-        VALUES (${user.id},${user.firstName},${user.lastName},${user.email})
-        `;
+## TypeScript: Declaration Merging
 
-        const r = await this.db.query(query);
+```ts
+import 'fastify';
+import type { PrismaClient } from '@prisma/client';
+import type { OpenAI } from 'openai';
 
-        return r.rowCount === 1;
-    }
+declare module 'fastify' {
+  interface FastifyRequest {
+    tenant: {
+      db: PrismaClient;
+      openai: OpenAI;
+    };
+  }
 
-    async all(): Promise<any> {
-        const query = SQL`SELECT * FROM ${SQL.quoteIdent(this.name)}`;
-
-        const r = await this.db.query(query);
-
-        return r.rows;
-    }
-
-    ...
+  interface FastifyInstance {
+    tenant: {
+      db: PrismaClient;
+      openai: OpenAI;
+    };
+    invalidateTenantConfig(id: string): Promise<void>
+  }
 }
 ```
 
-## How to exclude a route/s from tenant resolution
+## Advanced: Tenant Scoping Utility
+Use resources outside of Fastify lifecycle:
 
-Add `ignoreRoutePattern` regexp into plugin configuration object in order to exclude matching routes:
+```ts
+import { getTenantResource } from '@giogaspa/fastify-multitenant';
 
-```js
-fastify.register(require('@giogaspa/fastify-multitenant'), {
-    tenantsRepository: repository, 
-    resolverStrategies: [
-        ...
-    ],
-    ignoreRoutePattern: /^\/auth\// //Regexp
-})
-
-```
-
-Or add `{ multitenant: { exclude: true } }` to route `config` object:
-
-```js
-fastify
-      .get('/without_tenant',
-          {
-              config: {
-                  multitenant: {
-                      exclude: true
-                  }
-              },
-          },
-          async function routeHandler() {
-              return 'Route without tenant resolver'
-          })
+const db = await getTenantResource('tenant1', 'db');
+const users = await db.query('SELECT * FROM users');
 ```
 
 ## License
-
-Licensed under [MIT](./LICENSE).
+MIT

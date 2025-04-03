@@ -1,0 +1,11 @@
+{
+  "name": "fastify-multitenant-playground",
+  "version": "1.0.0",
+  "description": "Fastify multitenant plugin playground",
+  "main": "server.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gioacchino Gasparella",
+  "license": "MIT"
+}
