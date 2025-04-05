@@ -2,10 +2,28 @@
   "name": "fastify-multitenant-playground",
   "version": "1.0.0",
   "description": "Fastify multitenant plugin playground",
+  "author": "Gioacchino Gasparella",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "type": "module",
   "main": "server.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.json",
+    "start": "node ./dist/server.js",
+    "dev": "tsx watch ./src/server.ts"
   },
-  "author": "Gioacchino Gasparella",
-  "license": "MIT"
+  "dependencies": {
+    "@fastify/type-provider-typebox": "^5.1.0",
+    "@giogaspa/fastify-multitenant": "file:../",
+    "fastify": "^5.2.2",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tsconfig/node20": "^20.1.5",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
 }

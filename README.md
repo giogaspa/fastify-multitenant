@@ -9,11 +9,12 @@ A flexible and fully pluggable multi-tenancy plugin for Fastify, written in **Ty
 - 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
 - 🔁 **Access other resources inside a resource (composability)**
 - 🧹 **Graceful connection cleanup with idle expiration**
-- 🪝 **Lifecycle hooks per resource**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
-### Da valutare:
+### Maybe/In future:
 - 🔧 **Run migrations and seed per tenant or main database**
 - 🌱 **Dynamically register tenants via API**
+- 🪝 **Lifecycle hooks per resource**
+- 📈 **Resources memory consumption**
 
 > 💡 The plugin is **not tied to any specific database solution**. You can use it to manage connections to PostgreSQL, MySQL, Redis, file systems, third-party APIs, or in-memory resources like JavaScript `Map` instances.
 
@@ -211,8 +212,9 @@ resourceFactories: {
 | Property         | Type          | Description                                    |
 |-----------------|---------------|------------------------------------------------|
 | `request.tenant` | `Record<string, any>` | Tenant-scoped resources for the current request |
-| `fastify.tenant` | `() => Record<string, any>` | Global accessor for tenant resources in current request |
-| `fastify.invalidateTenantConfig(id)` | `Promise<void>` | Clears a cached tenant config for a given ID |
+| ~~`fastify.tenant`~~ | ~~`() => Record<string, any>`~~ | ~~Global accessor for tenant resources in current request~~ |
+| ~~`fastify.invalidateTenantConfig(id)`~~ | ~~`Promise<void>`~~ | ~~Clears a cached tenant config for a given ID~~ |
+| `fastify.tenants` | `{ get(id) => TenantResources, invalidate(id) => Promise<boolean>, ... }` | Get tenant resources ...|
 
 ## TypeScript: Declaration Merging
 
@@ -227,14 +229,6 @@ declare module 'fastify' {
       db: PrismaClient;
       openai: OpenAI;
     };
-  }
-
-  interface FastifyInstance {
-    tenant: {
-      db: PrismaClient;
-      openai: OpenAI;
-    };
-    invalidateTenantConfig(id: string): Promise<void>
   }
 }
 ```
