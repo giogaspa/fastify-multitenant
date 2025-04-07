@@ -3,21 +3,36 @@ import fp from 'fastify-plugin'
 
 import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, IdentifierStrategy, ResourceFactory } from './types.js'
 import { TenantRequiredError } from './errors/TenantRequiredError.js'
-import { TenantConfigurationError } from './errors/TenantConfigurationError.js'
-
+import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
+import { TenantResourceNotFound } from './errors/TenantResourceNotFound.js'
+import { TenantConfigResolver, tenantConfigResolverFactory } from './tenant-config-resolver.js'
+import { TenantResourceResolver, tenantResourceResolverFactory } from './tenant-resource-resolver.js'
+import { identifyTenantFactory } from './tenant-identification.js'
 export { FastifyMultitenantOptions, ResourceFactoryConfig } from './types.js'
 export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
 
 declare module "fastify" {
     interface FastifyInstance {
+        tenants: {
+            config: TenantConfigResolver<BaseTenantId, BaseTenantConfig>
+            resources: TenantResourceResolver<BaseTenantId>
+        }
     }
 }
 
 const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastify, opts) => {
     const identifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
-    // TODO: only for testing
-    const inMemoryTenantResources: Record<string, Record<string, any>> = {}
+    const configResolver = tenantConfigResolverFactory(opts.tenantConfigResolver)
+    const resourceResolver = tenantResourceResolverFactory(opts.resourceFactories, configResolver)
+
+    fastify.decorate(
+        'tenants',
+        {
+            config: configResolver,
+            resources: resourceResolver
+        }
+    )
 
     fastify.decorateRequest('tenant', undefined)
 
@@ -32,32 +47,28 @@ const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastif
         const tenantId = await identifyTenant(request)
 
         if (!tenantId) {
-            this.log.debug('No tenant identified');
+            //this.log.debug('No tenant identified');
             throw new TenantRequiredError()
         }
 
         // RESOLVE TENANT CONFIG
-        // TODO: cache tenant config
-        const tenantConfig = await opts.resolveTenantConfig(tenantId)
+        const tenantConfig = await configResolver.get(tenantId)
 
         if (!tenantConfig) {
-            this.log.debug('No tenant config found')
-            throw new TenantConfigurationError()
+            //this.log.debug('No tenant config found')
+            throw new TenantConfigurationNotFound()
         }
 
-        // CREATE RESOURCES
-        // TODO: cache resources with TTL
-        if (!inMemoryTenantResources[tenantId]) {
-            console.log('Creating resources for tenant:', tenantId)
-            inMemoryTenantResources[tenantId] = await getResources(tenantConfig, opts.resourceFactories)
+        // RESOLVE TENANT RESOURCES
+        const tenantResources = await resourceResolver.getAll(tenantId)
+
+        if (!tenantResources) {
+            //this.log.debug('No tenant resources found')
+            throw new TenantResourceNotFound()
         }
-        const tenantResources = inMemoryTenantResources[tenantId]
 
         //@ts-ignore
         request.tenant = tenantResources
-
-        // ATTACH TENANT CONFIG AND RESOURCES TO REQUEST
-
     })
 }
 
@@ -70,40 +81,4 @@ function isExcludedRoute(request: FastifyRequest) {
     const { routeOptions } = request as FastifyRequest & { routeOptions: FastifyMultitenantRouteOptions }
 
     return routeOptions?.config?.fastifyMultitenant?.exclude === true
-}
-
-function identifyTenantFactory(strategies: IdentifierStrategy[]) {
-    if (!strategies || strategies.length === 0) {
-        return async () => undefined
-    }
-
-    return async function identifyTenant(request: FastifyRequest): Promise<BaseTenantId | undefined> {
-        let tenantId: BaseTenantId | undefined = undefined
-
-        for (const strategyFn of strategies) {
-            tenantId = await strategyFn(request)
-            if (tenantId) {
-                break // Exit the loop if a tenant ID is found
-            }
-        }
-
-        return tenantId
-    }
-}
-
-// Draft implementation of resource factories
-// TODO: implement caching and TTL
-async function getResources<TenantConfig extends BaseTenantConfig>(tenantConfig: TenantConfig, resourceFactories: Record<string, ResourceFactory<TenantConfig>>) {
-    const resources: Record<string, any> = {}
-
-    for (const [name, factory] of Object.entries(resourceFactories)) {
-        if (typeof factory === 'function') {
-            resources[name] = await factory({ config: tenantConfig, resources })
-        } else if (typeof factory.factory === 'function') {
-            const { factory: resourceFactory, cache, ttl } = factory
-            resources[name] = await resourceFactory({ config: tenantConfig, resources })
-        }
-    }
-
-    return resources
 }

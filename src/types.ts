@@ -17,18 +17,17 @@ export type ResourceFactoryFunction<TenantConfig extends BaseTenantConfig> = (co
 
 export type ResourceFactory<TenantConfig extends BaseTenantConfig> = {
     factory: ResourceFactoryFunction<TenantConfig>
-    cache?: boolean
-    ttl?: number
+    cacheTtl?: number
 } | ResourceFactoryFunction<TenantConfig>
+
+export type ResourceFactories<TenantConfig extends BaseTenantConfig> = Record<string, ResourceFactory<TenantConfig>>
+
+export type FastifyMultitenantConfigResolver<TenantConfig extends BaseTenantConfig> = (tenantId: BaseTenantId) => Promise<TenantConfig | undefined>
 
 export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig> = FastifyPluginOptions & {
     tenantIdentifierStrategies: Array<IdentifierStrategy>
-    resolveTenantConfig: (tenantId: BaseTenantId) => Promise<TenantConfig | undefined>
-    resolverCache?: {
-        enabled: true
-        ttl?: number
-    },
-    resourceFactories: Record<string, ResourceFactory<TenantConfig>>
+    tenantConfigResolver: FastifyMultitenantConfigResolver<TenantConfig>
+    resourceFactories: ResourceFactories<TenantConfig>
 }
 
 export type FastifyMultitenantRouteOptions = {

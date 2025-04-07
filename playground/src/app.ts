@@ -38,7 +38,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             headerIdentifierStrategy('X-TENANT-ID'),
             queryIdentifierStrategy('tenantId'),
         ],
-        resolveTenantConfig: async (tenantId: string) => {
+        tenantConfigResolver: async (tenantId: string) => {
             const config = inMemoryTenantMapper.get(tenantId)
 
             return config
@@ -68,8 +68,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
                         getAll: () => map.values()
                     }
                 },
-                cache: true,
-                ttl: 60,
+                cacheTtl: 60, // 1 minute
             },
             'resource3': async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
                 console.log('Creating resource3 for tenant:', config)
