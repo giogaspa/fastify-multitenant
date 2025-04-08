@@ -175,15 +175,16 @@ const myStrategy = () => (req) => req.headers['my-header'];
 
 ## 🔧 Tenant Config Resolver (Step 2)
 
-After a tenant ID is detected, the plugin calls `resolveTenantConfig(tenantId)` to fetch **configuration** for that tenant.
+After a tenant ID is detected, the plugin calls the tenant configuration resolver to fetch **configuration** for that tenant.
 
 ### Purpose
 
-The tenant config should include:
+The tenant configuration object should include information needed by the resources factory, e.g.:
 
-- Database connection string
-- API keys (e.g., OpenAI, Stripe)
-- Feature flags or environment settings
+- Database connection string,
+- API keys (e.g., OpenAI, Stripe,...),
+- Feature flags or environment settings,
+- etc.
 
 ### Example
 
@@ -200,7 +201,7 @@ tenantConfigResolver: async (tenantId) => {
 }
 ```
 
-This config is passed to all resource factories for that tenant.
+This configuration is passed to all resource factories for that tenant.
 
 ### 🔧 Programmatic reset of tenant configuration cache
 
