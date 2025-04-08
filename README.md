@@ -85,6 +85,13 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
 
     await server.register(fastifyMultitenant, options)
 
+    // Example of a tenant's route that uses the tenant greeting service
+    server.get('/greetings', async (request) => {
+        return {
+            greeting: request.tenant.greeting(),
+        }
+    })
+
     // Example of a route that is excluded from multitenancy
     server.get(
         '/no-tenant',
@@ -99,13 +106,6 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             return { msg: 'No tenant route' }
         }
     )
-
-    // Example of a tenant route that uses the tenant database
-    server.get('/greetings', async (request) => {
-        return {
-            greeting: request.tenant.greeting(),
-        }
-    })
 }
 ```
 
