@@ -2,6 +2,9 @@
 
 A flexible multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
+Examples:
+- [Playground](playground/README.md) (sqlite)
+
 ## Features
 
 ### Done
