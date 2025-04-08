@@ -3,22 +3,31 @@
 A flexible and fully pluggable multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
 ## Features
-- 🔍 **Composable tenant detection** via functional identifier strategies (e.g., `headerIdentifierStrategy`, `cookieIdentifierStrategy`)
+
+### Done
+
+- 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `cookieIdentifierStrategy`)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
-- ⚡ **Per-resource connection caching and expiration**
-- 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
 - 🔁 **Access other resources inside a resource (composability)**
-- 🧹 **Graceful connection cleanup with idle expiration**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
-### Maybe/In future:
+
+### In progress
+
+- 🪝 **Lifecycle hooks per resource**
+- ⚡ **Per-resource caching and expiration**
+- 🧹 **Graceful connection cleanup with idle expiration**
+- 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
+
+### In future/Maybe
+
 - 🔧 **Run migrations and seed per tenant or main database**
 - 🌱 **Dynamically register tenants via API**
-- 🪝 **Lifecycle hooks per resource**
 - 📈 **Resources memory consumption**
 
 > 💡 The plugin is **not tied to any specific database solution**. You can use it to manage connections to PostgreSQL, MySQL, Redis, file systems, third-party APIs, or in-memory resources like JavaScript `Map` instances.
 
 ## Installation
+
 ```sh
 npm install @giogaspa/fastify-multitenant
 ```
@@ -32,6 +41,7 @@ npm install @giogaspa/fastify-multitenant
 ---
 
 ## 🔧 Full Example Configuration
+
 ```ts
 import Fastify from 'fastify';
 import multiTenantPlugin, {
@@ -104,9 +114,11 @@ fastify.register(multiTenantPlugin, {
 ---
 
 ## 🔍 Tenant Identifier Strategies (Step 1)
+
 Tenant identification is configured using an array of detector functions. These are called in order until one returns a valid tenant ID.
 
 ### Built-in strategies
+
 ```ts
 headerIdentifierStrategy(headerName: string): IdentifierStrategy
 cookieIdentifierStrategy(cookieName: string): IdentifierStrategy
@@ -114,7 +126,8 @@ queryParamIdentifierStrategy(param: string): IdentifierStrategy
 customIdentifierStrategy(fn: (req: FastifyRequest) => string | undefined): IdentifierStrategy
 ```
 
-### Example:
+### Example
+
 ```ts
 tenantIdentifierStrategies: [
   headerIdentifierStrategy('X-TENANT-ID'),
@@ -126,7 +139,9 @@ tenantIdentifierStrategies: [
 > ⚠️ Order matters. First match wins.
 
 ### Custom strategies
+
 You can also write your own:
+
 ```ts
 const myStrategy = () => (req) => req.headers['my-header'];
 ```
@@ -134,15 +149,19 @@ const myStrategy = () => (req) => req.headers['my-header'];
 ---
 
 ## 🔧 Tenant Config Resolver (Step 2)
+
 After a tenant ID is detected, the plugin calls `resolveTenantConfig(tenantId)` to fetch **configuration** for that tenant.
 
 ### Purpose
+
 The tenant config should include:
+
 - Database connection string
 - API keys (e.g., OpenAI, Stripe)
 - Feature flags or environment settings
 
 ### Example
+
 ```ts
 resolveTenantConfig: async (tenantId) => {
   return {
@@ -157,7 +176,9 @@ resolveTenantConfig: async (tenantId) => {
 This config is passed to all resource factories for that tenant.
 
 ### 🔁 Configuration caching
+
 You can enable caching for resolved tenant configs:
+
 ```ts
 resolverCache: {
   enabled: true,
@@ -166,6 +187,7 @@ resolverCache: {
 ```
 
 ### 🔧 Programmatic reset
+
 ```ts
 await fastify.invalidateTenantConfig('tenantId');
 ```
@@ -173,17 +195,21 @@ await fastify.invalidateTenantConfig('tenantId');
 ---
 
 ## 🔨 Resource Factories (Step 3)
+
 Register one or more resources per tenant. Factories can reference other already-initialized resources (declared before them).
 
-#### Factory Signature
+### Factory Signature
+
 ```ts
 ({ tenantId, config, resources }) => Promise<any>
 ```
+
 - `tenantId`: current tenant ID
 - `config`: result of `resolveTenantConfig`
 - `resources`: other initialized resources so far (in declaration order)
 
 ### Example
+
 ```ts
 resourceFactories: {
   db: {
@@ -234,6 +260,7 @@ declare module 'fastify' {
 ```
 
 ## Advanced: Tenant Scoping Utility
+
 Use resources outside of Fastify lifecycle:
 
 ```ts
@@ -244,4 +271,5 @@ const users = await db.query('SELECT * FROM users');
 ```
 
 ## License
+
 MIT
