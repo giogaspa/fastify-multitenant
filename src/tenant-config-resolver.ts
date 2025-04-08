@@ -1,12 +1,12 @@
-import { BaseTenantConfig, BaseTenantId, FastifyMultitenantConfigResolver } from "./types.js"
+import { BaseTenantConfig, BaseTenantId, ConfigResolver } from "./types.js"
 
 export type TenantConfigResolver<TenantId extends BaseTenantId, TenantConfig extends BaseTenantConfig> = {
-    get: FastifyMultitenantConfigResolver<TenantConfig>
+    get: ConfigResolver<TenantConfig>
     invalidate: (tenantId: TenantId) => void
     invalidateAll: () => void
 }
 
-export function tenantConfigResolverFactory<TenantConfig extends BaseTenantConfig>(resolve: FastifyMultitenantConfigResolver<TenantConfig>): TenantConfigResolver<string, TenantConfig> {
+export function tenantConfigResolverFactory<TenantConfig extends BaseTenantConfig>(resolve: ConfigResolver<TenantConfig>): TenantConfigResolver<string, TenantConfig> {
     const inMemoryConfigCache = new Map<BaseTenantId, TenantConfig>()
 
     async function get(tenantId: BaseTenantId): Promise<TenantConfig | undefined> {

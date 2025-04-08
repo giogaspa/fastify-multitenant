@@ -1,22 +1,22 @@
 # Fastify Multi-Tenancy Plugin
 
-A flexible and fully pluggable multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
+A flexible multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
 ## Features
 
 ### Done
 
-- 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `cookieIdentifierStrategy`)
+- 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`, `cookieIdentifierStrategy`,...)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
-- 🔁 **Access other resources inside a resource (composability)**
+- 🔁 **Access other resources inside a resource**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
 
 ### In progress
 
-- 🪝 **Lifecycle hooks per resource**
 - ⚡ **Per-resource caching and expiration**
-- 🧹 **Graceful connection cleanup with idle expiration**
 - 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
+- 🧹 **Graceful connection cleanup with idle expiration**
+- 🪝 **Lifecycle hooks per resource**
 
 ### In future/Maybe
 
@@ -24,7 +24,7 @@ A flexible and fully pluggable multi-tenancy plugin for Fastify, written in **Ty
 - 🌱 **Dynamically register tenants via API**
 - 📈 **Resources memory consumption**
 
-> 💡 The plugin is **not tied to any specific database solution**. You can use it to manage connections to PostgreSQL, MySQL, Redis, file systems, third-party APIs, or in-memory resources like JavaScript `Map` instances.
+> 💡 The plugin is **not tied to any specific database or ORM**.
 
 ## Installation
 
@@ -35,53 +35,78 @@ npm install @giogaspa/fastify-multitenant
 ## 🤖 How It Works
 
 1. **Tenant Identifier Strategies** → figure out which tenant is making the request.
-2. **Tenant Config Resolver** → fetches the tenant's configuration (like DB URL, API keys).
-3. **Resource Factories** → use that configuration to create tenant-specific resources.
+2. **Tenant Config Resolver** → fetches the tenant's configuration (like DB URL, API keys,...).
+3. **Resource Factories** → use that configuration to create tenant-specific resources and cache them.
 
 ---
 
 ## 🔧 Full Example Configuration
 
 ```ts
-import Fastify from 'fastify';
-import multiTenantPlugin, {
-  headerIdentifierStrategy,
-  queryParamIdentifierStrategy,
-  customIdentifierStrategy
-} from '@giogaspa/fastify-multitenant';
-import { PrismaClient } from '@prisma/client';
-import { OpenAI } from 'openai';
+import { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
 
-const fastify = Fastify();
+declare module "fastify" {
+    interface FastifyRequest {
+        tenant: {
+            db: TenantDatabase
+            greeting: GreetingsClient
+        }
+    }
+}
 
-fastify.register(multiTenantPlugin, {
-  tenantIdentifierStrategies: [
-    headerIdentifierStrategy('X-TENANT-ID'),
-    queryParamIdentifierStrategy('tenant_id'),
-    customIdentifierStrategy(req => req.cookies?.tenant_id)
-  ],
-  resolveTenantConfig: async (tenantId) => {
-    return {
-      id: tenantId,
-      db_url: `postgres://localhost:5432/${tenantId}`,
-      openaiKey: 'sk-xxx',
-      mailerConfig: { from: 'support@example.com' }
-    };
-  },
-  resolverCache: {
-    enabled: true,
-    expirationMs: 1000 * 60 * 10 // 10 minutes
-  },
-  resourceFactories: {
-    db: {
-      factory: async ({ config }) => new PrismaClient({ datasources: { db: { url: config.db_url } } }),
-      cache: true,
-      expirationMs: 1000 * 60 * 30
-    },
-    openai: async ({ config }) => new OpenAI({ apiKey: config.openaiKey }),
-    mailer: async ({ config }) => createMailer(config.mailerConfig)
-  }
-});
+export const app: FastifyPluginAsync = async function App(server: FastifyInstance) {
+
+    const options: FastifyMultitenantOptions<TenantConfig> = {
+        tenantIdentifierStrategies: [
+            headerIdentifierStrategy('X-TENANT-ID'),
+            queryIdentifierStrategy('tenantId'),
+        ],
+        tenantConfigResolver: async (tenantId: string) => {
+            return tenantConfigs.get(tenantId)
+        },
+        resourceFactories: {
+            'db': async ({ config }: ResourceFactoryConfig<TenantConfig>) => {
+                const dbClient = createTenantClient({ url: config.db })
+                return dbClient
+            },
+            'greeting': {
+                factory: async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
+                    const tenantDb: TenantDatabase = resources.db
+                    const tenantGreetings = await tenantDb.greetings.findMany()
+                    const greetingsClient = greetingFactory(config.id, tenantGreetings)
+
+                    return greetingsClient
+                },
+                cacheTtl: 60, // 1 minute
+            },
+        }
+    }
+
+    await server.register(fastifyMultitenant, options)
+
+    // Example of a route that is excluded from multitenancy
+    server.get(
+        '/no-tenant',
+        {
+            config: {
+                fastifyMultitenant: {
+                    exclude: true
+                }
+            }
+        },
+        async (request, reply) => {
+            return { msg: 'No tenant route' }
+        }
+    )
+
+    // Example of a tenant route that uses the tenant database
+    server.get('/greetings', async (request) => {
+        return {
+            greeting: request.tenant.greeting(),
+        }
+    })
+}
 ```
 
 ---
@@ -91,19 +116,16 @@ fastify.register(multiTenantPlugin, {
 | Option                      | Type                                                       | Description                                                                 |
 |-----------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `tenantIdentifierStrategies` | `Array<IdentifierStrategy>`                                | Strategies to extract tenant ID from request                                |
-| `resolveTenantConfig`      | `(tenantId: string) => Promise<TenantConfig>`              | Fetch tenant-specific configuration                                         |
-| `resolverCache.enabled`    | `boolean`                                                  | Enable caching of resolved tenant configs                                   |
-| `resolverCache.expirationMs` | `number`                                                  | Time-to-live for cached tenant config in milliseconds                       |
-| `resourceFactories`        | `Record<string, ResourceFactory \| ResourceFactoryConfig>`  | Defines how to create tenant-specific services                              |
+| `tenantConfigResolver`      | `ConfigResolver<TenantConfig>`              | Fetch tenant-specific configuration                                         |
+| `resourceFactories`        | `ResourceFactories<TenantConfig>`  | Defines how to create tenant-specific services                              |
 
-### `ResourceFactoryConfig`
+### `ResourceFactory<TenantConfig>`
 
 | Property         | Type                                    | Description                                           |
 |------------------|-----------------------------------------|-------------------------------------------------------|
-| `factory`        | `(options: FactoryOptions) => Promise<any>` | Function that creates the resource                    |
-| `cache`          | `boolean`                               | Whether to cache the resource (default: true)         |
-| `expirationMs`   | `number`                                | TTL for idle resource cleanup                         |
-| `hooks`          | `object`                                | Lifecycle hooks (`onCreated`, `onError`, `onExpired`) |
+| `factory`        | `(config: ResourceFactoryConfig<TenantConfig>) => any \| Promise<any>` | Function that creates the resource                    |
+| `cacheTtl?`          | `number`                               | TTL for idle resource cleanup (default=-1)         |
+| ~~`hooks`~~        | ~~`object`~~                                | ~~Lifecycle hooks (`onCreated`, `onError`, `onExpired`)~~ |
 
 ---
 
@@ -163,7 +185,9 @@ The tenant config should include:
 ### Example
 
 ```ts
-resolveTenantConfig: async (tenantId) => {
+tenantConfigResolver: async (tenantId) => {
+  ...
+
   return {
     id: tenantId,
     db_url: `postgres://.../${tenantId}`,
@@ -175,21 +199,11 @@ resolveTenantConfig: async (tenantId) => {
 
 This config is passed to all resource factories for that tenant.
 
-### 🔁 Configuration caching
-
-You can enable caching for resolved tenant configs:
+### 🔧 Programmatic reset of tenant configuration cache
 
 ```ts
-resolverCache: {
-  enabled: true,
-  expirationMs: 1000 * 60 * 10 // 10 minutes
-}
-```
-
-### 🔧 Programmatic reset
-
-```ts
-await fastify.invalidateTenantConfig('tenantId');
+await fastify.tenant.invalidateConf('tenantId');
+await fastify.tenant.invalidateAllConf('tenantId');
 ```
 
 ---
@@ -201,11 +215,10 @@ Register one or more resources per tenant. Factories can reference other already
 ### Factory Signature
 
 ```ts
-({ tenantId, config, resources }) => Promise<any>
+(config: ResourceFactoryConfig<TenantConfig>) => any | Promise<any>
 ```
 
-- `tenantId`: current tenant ID
-- `config`: result of `resolveTenantConfig`
+- `config`: result of `resolveTenantConfig(tenantId)`
 - `resources`: other initialized resources so far (in declaration order)
 
 ### Example
@@ -214,19 +227,11 @@ Register one or more resources per tenant. Factories can reference other already
 resourceFactories: {
   db: {
     factory: async ({ config }) => new PrismaClient({ ... }),
-    cache: true,
-    expirationMs: 1800000,
-    hooks: {
-      onCreated: ({ tenantId }) => { ... },
-      onError: ({ tenantId, error }) => { ... },
-      onExpired: ({ tenantId }) => { ... }
-    }
+    cacheTtl: 1800000,
   },
-  mailer: {
-    factory: async ({ config, resources }) => {
+  mailer: async ({ config, resources }) => {
       const settings = await resources.db.settings.findFirst();
       return createMailer({ ...config.mailerConfig, from: settings.sender });
-    }
   }
 }
 ```
@@ -240,7 +245,7 @@ resourceFactories: {
 | `request.tenant` | `Record<string, any>` | Tenant-scoped resources for the current request |
 | ~~`fastify.tenant`~~ | ~~`() => Record<string, any>`~~ | ~~Global accessor for tenant resources in current request~~ |
 | ~~`fastify.invalidateTenantConfig(id)`~~ | ~~`Promise<void>`~~ | ~~Clears a cached tenant config for a given ID~~ |
-| `fastify.tenants` | `{ get(id) => TenantResources, invalidate(id) => Promise<boolean>, ... }` | Get tenant resources ...|
+| ~~`fastify.tenants`~~ | ~~`{ get(id) => TenantResources, invalidate(id) => Promise<boolean>, ... }`~~ | ~~Get tenant resources ...~~|
 
 ## TypeScript: Declaration Merging
 

@@ -22,11 +22,11 @@ export type ResourceFactory<TenantConfig extends BaseTenantConfig> = {
 
 export type ResourceFactories<TenantConfig extends BaseTenantConfig> = Record<string, ResourceFactory<TenantConfig>>
 
-export type FastifyMultitenantConfigResolver<TenantConfig extends BaseTenantConfig> = (tenantId: BaseTenantId) => Promise<TenantConfig | undefined>
+export type ConfigResolver<TenantConfig extends BaseTenantConfig> = (tenantId: BaseTenantId) => Promise<TenantConfig | undefined>
 
 export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig> = FastifyPluginOptions & {
     tenantIdentifierStrategies: Array<IdentifierStrategy>
-    tenantConfigResolver: FastifyMultitenantConfigResolver<TenantConfig>
+    tenantConfigResolver: ConfigResolver<TenantConfig>
     resourceFactories: ResourceFactories<TenantConfig>
 }
 
