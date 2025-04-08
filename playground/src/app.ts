@@ -1,6 +1,12 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
 
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/libsql'
+import { createClient } from '@libsql/client';
+
+import { AdminSchema, AdminDatabaseType } from '../schemas/admin.schema.js'
+import { TenantSchema, TenantDatabaseType } from '../schemas/tenant.schema.js';
 
 declare module "fastify" {
     interface FastifyInstance {
@@ -8,30 +14,16 @@ declare module "fastify" {
 
     interface FastifyRequest {
         tenant: {
-            resource1: {
-                greeting: () => string
-            }
-            resource2: {
-                greeting: () => string
-                set: (key: string, value: string) => void
-                getAll: () => IterableIterator<string>
-            }
+            db: TenantDatabaseType
+            greeting: GreetingsClient
         }
     }
 }
 
-type TenantConfig = {
-    id: string
-    name: string
-    dbConnectionURL: string
-}
-
-const inMemoryTenantMapper = new Map<string, TenantConfig>()
-inMemoryTenantMapper.set('tenant1', { id: 'tenant1', name: 'Tenant 1', dbConnectionURL: 'mongodb://localhost:27017/tenant1' })
-inMemoryTenantMapper.set('tenant2', { id: 'tenant2', name: 'Tenant 2', dbConnectionURL: 'mongodb://localhost:27017/tenant2' })
-inMemoryTenantMapper.set('tenant3', { id: 'tenant3', name: 'Tenant 3', dbConnectionURL: 'mongodb://localhost:27017/tenant3' })
-
 export const app: FastifyPluginAsync = async function App(server: FastifyInstance) {
+
+    const adminDBClient = createClient({ url: 'file:./data/admin.db' })
+    const adminDB: AdminDatabaseType = drizzle(adminDBClient, { schema: AdminSchema })
 
     const options: FastifyMultitenantOptions<TenantConfig> = {
         tenantIdentifierStrategies: [
@@ -39,50 +31,37 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             queryIdentifierStrategy('tenantId'),
         ],
         tenantConfigResolver: async (tenantId: string) => {
-            const config = inMemoryTenantMapper.get(tenantId)
-
-            return config
+            server.log.debug(`[${tenantId}]: Resolving tenant config`)
+            // In this example, we are using a SQLite database to store the tenant configuration,
+            // but you can use any other data source (e.g., a file, an object, .env, etc.)
+            return adminDB.query.tenantsConfig.findFirst({ where: eq(AdminSchema.tenantsConfig.id, tenantId) })
         },
         resourceFactories: {
-            'resource1': async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
-                console.log('Creating resource1 for tenant:', config)
-                console.log('Resources:', resources)
+            'db': async ({ config }: ResourceFactoryConfig<TenantConfig>) => {
+                server.log.debug(`[${config.id}]: Creating db client`)
 
-                return {
-                    greeting: () => `Tenant ${config.id}: Hello world!`,
-                }
+                const client = createClient({ url: config.db })
+                const db: TenantDatabaseType = drizzle(client, { schema: TenantSchema })
+                return db
             },
-            'resource2': {
+            'greeting': {
                 factory: async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
-                    console.log('Creating resource2 for tenant:', config)
-                    console.log('Resources:', resources)
+                    server.log.debug(`[${config.id}]: Creating greeting client`)
 
-                    const map = new Map<string, string>()
-                    map.set('key1', 'value1')
-                    map.set('key2', 'value2')
-                    map.set('key3', 'value3')
+                    const tenantDb = resources.db as TenantDatabaseType
+                    const tenantGreetings = await tenantDb.query.greetings.findMany()
+                    const greetingsClient = greetingFactory(config.id, tenantGreetings.map(g => g.greeting))
 
-                    return {
-                        greeting: () => `Tenant ${config.id}: Hello world!`,
-                        set: (key: string, value: string) => map.set(key, value),
-                        getAll: () => map.values()
-                    }
+                    return greetingsClient
                 },
                 cacheTtl: 60, // 1 minute
-            },
-            'resource3': async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
-                console.log('Creating resource3 for tenant:', config)
-                console.log('Resources:', resources)
-
-                return {
-                    greeting: () => `Tenant ${config.id}: Hello world!`,
-                }
             },
         }
     }
 
     await server.register(fastifyMultitenant, options)
 
+    // Example of a route that is excluded from multitenancy
     server.get(
         '/no-tenant',
         {
@@ -97,13 +76,33 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
         }
     )
 
-    server.get('/', async (request, reply) => {
-        console.log('Requesting tenant:', request.tenant)
-
+    // Example of a tenant route that uses the tenant database
+    server.get('/greetings', async (request) => {
         return {
-            greeting1: request.tenant.resource1.greeting(),
-            greeting2: request.tenant.resource2.greeting(),
-            values: [...request.tenant.resource2.getAll()]
+            greeting: request.tenant.greeting(),
         }
     })
+
+    // Example of a tenant route that uses the tenant database
+    server.get('/products', async (request) => {
+        const products = await request.tenant.db.query.products.findMany()
+
+        return products
+    })
+}
+
+type TenantConfig = {
+    id: string
+    name: string
+    db: string
+}
+
+// TODO: Move to a separate file
+type GreetingsClient = ReturnType<typeof greetingFactory>
+function greetingFactory(prefix: string, greetings: string[]) {
+    return () => {
+        const greeting = greetings[Math.floor(Math.random() * greetings.length)]
+
+        return `[${prefix}]: ${greeting}`
+    }
 }
