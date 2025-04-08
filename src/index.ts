@@ -34,7 +34,7 @@ const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastif
         }
     )
 
-    fastify.decorateRequest('tenant', undefined)
+    fastify.decorateRequest('tenant', null)
 
     fastify.addHook('onRequest', async function (this: FastifyInstance, request: FastifyRequest) {
         if (isExcludedRoute(request)) {
