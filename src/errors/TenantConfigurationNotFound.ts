@@ -4,6 +4,6 @@ export class TenantConfigurationNotFound extends Error {
     constructor(message = 'Tenant configuration not found') {
         super(message)
         this.name = 'TenantConfigurationNotFound'
-        this.statusCode = 500
+        this.statusCode = 401
     }
 }
