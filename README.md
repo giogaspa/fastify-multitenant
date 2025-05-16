@@ -63,7 +63,8 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
     const options: FastifyMultitenantOptions<TenantConfig> = {
         tenantIdentifierStrategies: [
             headerIdentifierStrategy('X-TENANT-ID'),
-            queryIdentifierStrategy('tenantId'),
+            pathPrefixIdentifierStrategy(),
+            userCustomIdentifierStrategy(),
         ],
         tenantConfigResolver: async (tenantId: string) => {
             return tenantConfigs.get(tenantId)
@@ -207,7 +208,7 @@ This configuration is passed to all resource factories for that tenant.
 
 ```ts
 await fastify.tenant.invalidateConf('tenantId');
-await fastify.tenant.invalidateAllConf('tenantId');
+await fastify.tenant.invalidateAllConf();
 ```
 
 ---
