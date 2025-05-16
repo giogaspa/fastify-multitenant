@@ -29,11 +29,17 @@ Examples:
 
 > 💡 The plugin is **not tied to any specific database or ORM**.
 
-## Installation
+## Install
 
 ```sh
 npm install @giogaspa/fastify-multitenant
 ```
+
+### Compatibility
+| Plugin version | Fastify version |
+| ---------------|-----------------|
+| `>=1.x`        | `^5.x`          |
+| `^0.x`         | `^4.x`          |
 
 ## 🤖 How It Works
 
