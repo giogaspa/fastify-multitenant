@@ -11,7 +11,7 @@ Examples:
 
 - 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`, `cookieIdentifierStrategy`,...)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
-- 🔁 **Access other resources inside a resource**
+- 🔁 **Access other resources inside a resource factory**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
 
 ### In progress
