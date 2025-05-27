@@ -22,7 +22,11 @@ async function start() {
 
   await server.register(app)
 
-  await server.ready()
+  await server.ready(() => {
+    console.log('Server is ready')
+    console.log(server.printRoutes())
+  })
+
 
   server.listen(
     {

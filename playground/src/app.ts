@@ -1,29 +1,37 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
-
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql'
 import { createClient } from '@libsql/client';
 
 import { AdminSchema, AdminDatabaseType } from '../schemas/admin.schema.js'
 import { TenantSchema, TenantDatabaseType } from '../schemas/tenant.schema.js';
+import { GreetingModule } from './modules/greeting/index.js';
+import { ProductModule } from './modules/product/index.js';
 
 declare module "fastify" {
     interface FastifyInstance {
+        adminDB: AdminDatabaseType
     }
 
     interface FastifyRequest {
         tenant: {
             db: TenantDatabaseType
-            greeting: GreetingsClient
         }
     }
+}
+
+type TenantConfig = {
+    id: string
+    name: string
+    db: string
 }
 
 export const app: FastifyPluginAsync = async function App(server: FastifyInstance) {
 
     const adminDBClient = createClient({ url: 'file:./data/admin.db' })
     const adminDB: AdminDatabaseType = drizzle(adminDBClient, { schema: AdminSchema })
+    server.decorate('adminDB', adminDB)
 
     const options: FastifyMultitenantOptions<TenantConfig> = {
         tenantIdentifierStrategies: [
@@ -43,23 +51,16 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
                 const client = createClient({ url: config.db })
                 const db: TenantDatabaseType = drizzle(client, { schema: TenantSchema })
                 return db
-            },
-            'greeting': {
-                factory: async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
-                    server.log.debug(`[${config.id}]: Creating greeting client`)
-
-                    const tenantDb = resources.db as TenantDatabaseType
-                    const tenantGreetings = await tenantDb.query.greetings.findMany()
-                    const greetingsClient = greetingFactory(config.id, tenantGreetings.map(g => g.greeting))
-
-                    return greetingsClient
-                },
-                cacheTtl: 60, // 1 minute
-            },
+            }
         }
     }
 
-    await server.register(fastifyMultitenant, options)
+    // Register plugins
+    server.register(fastifyMultitenant, options)
+
+    // Register modules
+    server.register(GreetingModule)
+    server.register(ProductModule)
 
     // Example of a route that is excluded from multitenancy
     server.get(
@@ -75,34 +76,4 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             return { msg: 'No tenant route' }
         }
     )
-
-    // Example of a tenant route that uses the tenant database
-    server.get('/greetings', async (request) => {
-        return {
-            greeting: request.tenant.greeting(),
-        }
-    })
-
-    // Example of a tenant route that uses the tenant database
-    server.get('/products', async (request) => {
-        const products = await request.tenant.db.query.products.findMany()
-
-        return products
-    })
-}
-
-type TenantConfig = {
-    id: string
-    name: string
-    db: string
-}
-
-// TODO: Move to a separate file
-type GreetingsClient = ReturnType<typeof greetingFactory>
-function greetingFactory(prefix: string, greetings: string[]) {
-    return () => {
-        const greeting = greetings[Math.floor(Math.random() * greetings.length)]
-
-        return `[${prefix}]: ${greeting}`
-    }
 }
