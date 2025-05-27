@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
+import { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
 import fp from 'fastify-plugin'
 
 import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, IdentifierStrategy, ResourceFactory } from './types.js'
@@ -8,9 +8,12 @@ import { TenantResourceNotFound } from './errors/TenantResourceNotFound.js'
 import { TenantConfigResolver, tenantConfigResolverFactory } from './tenant-config-resolver.js'
 import { TenantResourceResolver, tenantResourceResolverFactory } from './tenant-resource-resolver.js'
 import { identifyTenantFactory } from './tenant-identification.js'
+import { TenantResourcesAsyncLocalStorage } from './request-context.js'
+
 export { FastifyMultitenantOptions, ResourceFactoryConfig } from './types.js'
 export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
+export { tenantResourcesContext } from './request-context.js'
 
 declare module "fastify" {
     interface FastifyInstance {
@@ -36,39 +39,52 @@ const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastif
 
     fastify.decorateRequest('tenant', null)
 
-    fastify.addHook('onRequest', async function (this: FastifyInstance, request: FastifyRequest) {
+    fastify.addHook('onRequest', function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
         if (isExcludedRoute(request)) {
             //this.log.debug('Route is excluded from multitenancy')
+            done()
             return
         }
 
         // IDENTIFY TENANT
-        //this.log.debug('Identifying tenant...')
-        const tenantId = await identifyTenant(request)
+        identifyTenant(request)
+            .then(tenantId => {
+                if (!tenantId) {
+                    done(new TenantRequiredError)
+                    return
+                }
 
-        if (!tenantId) {
-            //this.log.debug('No tenant identified');
-            throw new TenantRequiredError()
-        }
+                // RESOLVE TENANT CONFIG
+                configResolver
+                    .get(tenantId)
+                    .then(tenantConfig => {
+                        if (!tenantConfig) {
+                            done(new TenantConfigurationNotFound)
+                            return
+                        }
 
-        // RESOLVE TENANT CONFIG
-        const tenantConfig = await configResolver.get(tenantId)
+                        // RESOLVE TENANT RESOURCES
+                        resourceResolver
+                            .getAll(tenantId)
+                            .then(tenantResources => {
+                                if (!tenantResources) {
+                                    //this.log.debug('No tenant resources found')
+                                    done(new TenantResourceNotFound)
+                                    return
+                                }
 
-        if (!tenantConfig) {
-            //this.log.debug('No tenant config found')
-            throw new TenantConfigurationNotFound()
-        }
+                                //this.log.debug(`tenant configuration found`)
 
-        // RESOLVE TENANT RESOURCES
-        const tenantResources = await resourceResolver.getAll(tenantId)
+                                //@ts-ignore
+                                request.tenant = tenantResources
 
-        if (!tenantResources) {
-            //this.log.debug('No tenant resources found')
-            throw new TenantResourceNotFound()
-        }
-
-        //@ts-ignore
-        request.tenant = tenantResources
+                                TenantResourcesAsyncLocalStorage.run(tenantResources, done)
+                            })
+                            .catch(() => done(new TenantResourceNotFound))
+                    })
+                    .catch(() => done(new TenantConfigurationNotFound))
+            })
+            .catch(() => done(new TenantRequiredError))
     })
 }
 
