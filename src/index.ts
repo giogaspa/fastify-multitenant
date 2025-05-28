@@ -24,7 +24,7 @@ declare module "fastify" {
     }
 }
 
-const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastify, opts) => {
+const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastify, opts) => {
     const identifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
     const configResolver = tenantConfigResolverFactory(opts.tenantConfigResolver)
     const resourceResolver = tenantResourceResolverFactory(opts.resourceFactories, configResolver)
@@ -88,7 +88,7 @@ const plugin: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastif
     })
 }
 
-export default fp(plugin, {
+export default fp(fastifyMultitenant, {
     fastify: '5.x',
     name: '@giogaspa/fastify-multitenant'
 })
