@@ -3,6 +3,7 @@
 A flexible multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
 Examples:
+
 - [Playground](playground/README.md) (sqlite)
 
 ## Features
@@ -36,6 +37,7 @@ npm install @giogaspa/fastify-multitenant
 ```
 
 ### Compatibility
+
 | Plugin version | Fastify version |
 | ---------------|-----------------|
 | `>=1.x`        | `^5.x`          |
@@ -210,11 +212,11 @@ tenantConfigResolver: async (tenantId) => {
 
 This configuration is passed to all resource factories for that tenant.
 
-### 🔧 Programmatic reset of tenant configuration cache
+### 🔧 Programmatic reset of tenants configuration cache
 
 ```ts
-await fastify.tenant.invalidateConf('tenantId');
-await fastify.tenant.invalidateAllConf();
+await fastify.tenants.config.invalidate('tenantId');
+await fastify.tenants.config.invalidateAll();
 ```
 
 ---
@@ -249,14 +251,17 @@ resourceFactories: {
 
 ---
 
-## Fastify Decorations
+## Fastify Decorators
 
 | Property         | Type          | Description                                    |
 |-----------------|---------------|------------------------------------------------|
 | `request.tenant` | `Record<string, any>` | Tenant-scoped resources for the current request |
-| ~~`fastify.tenant`~~ | ~~`() => Record<string, any>`~~ | ~~Global accessor for tenant resources in current request~~ |
-| ~~`fastify.invalidateTenantConfig(id)`~~ | ~~`Promise<void>`~~ | ~~Clears a cached tenant config for a given ID~~ |
-| ~~`fastify.tenants`~~ | ~~`{ get(id) => TenantResources, invalidate(id) => Promise<boolean>, ... }`~~ | ~~Get tenant resources ...~~|
+| `fastify.tenants.resources.createAll` | `(tenantId: TenantId) => Promise<Record<string, unknown> \| undefined>` | ... |
+| `fastify.tenants.resources.getAll` | `(tenantId: TenantId) => Promise<Record<string, unknown> \| undefined>` | ... |
+| `fastify.tenants.resources.invalidateAll` | `() => void` | ... |
+| `fastify.tenants.config.get` | `ConfigResolver<TenantConfig>` | ... |
+| `fastify.tenants.config.invalidate` | `(tenantId: TenantId) => void` | ... |
+| `fastify.tenants.config.invalidateAll` | `() => void` | ... |
 
 ## TypeScript: Declaration Merging
 
@@ -275,15 +280,36 @@ declare module 'fastify' {
 }
 ```
 
-## Advanced: Tenant Scoping Utility
+## Advanced: Tenant resources context
 
-Use resources outside of Fastify lifecycle:
+Get resources from `tenantResourcesContext` context:
+
+| Method         | Type          | Description                                    |
+|-----------------|---------------|------------------------------------------------|
+| `tenantResourcesContext.get` | `(key: string) => unknown` | Tenant-scoped resource for the current request |
+| `tenantResourcesContext.getAll` | `() => TenantResourcesStore \| undefined` | Tenant-scoped resources for the current request |
+
+Example:
 
 ```ts
-import { getTenantResource } from '@giogaspa/fastify-multitenant';
+import { tenantResourcesContext } from '@giogaspa/fastify-multitenant'
 
-const db = await getTenantResource('tenant1', 'db');
-const users = await db.query('SELECT * FROM users');
+async function getUsers() {
+    const db = tenantResourcesContext.get('db'); // Specify resource name
+    const users = await db.query('SELECT * FROM users');
+
+    return users;
+}
+
+...
+
+fastify.get('/users', async () => {
+    return getUsers()
+})
+
+
+const allTenantResources = tenantResourcesContext.getAll();
+
 ```
 
 ## License
