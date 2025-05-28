@@ -4,7 +4,8 @@ import { BaseTenantConfig, BaseTenantId, ResourceFactories } from "./types.js"
 const DEFAULT_RESOURCE_FACTORY_CACHE_TTL = -1 // -1 means infinite cache. Singleton instance of resource factory
 
 export type TenantResourceResolver<TenantId extends BaseTenantId> = {
-    getAll: (tenantId: TenantId) => Promise<Record<string, any> | undefined>
+    createAll: (tenantId: TenantId) => Promise<Record<string, unknown> | undefined>
+    getAll: (tenantId: TenantId) => Promise<Record<string, unknown> | undefined>
     invalidateAll: () => void
 }
 
@@ -12,9 +13,15 @@ export function tenantResourceResolverFactory<TenantId extends BaseTenantId, Ten
     resourceFactories: ResourceFactories<TenantConfig>,
     configResolver: TenantConfigResolver<TenantId, TenantConfig>
 ): TenantResourceResolver<TenantId> {
-    const inMemoryResourcesCache = new Map<BaseTenantId, Record<string, any>>()
+    const inMemoryResourcesCache = new Map<BaseTenantId, Record<string, unknown>>()
 
-    async function getAll(tenantId: TenantId): Promise<any | undefined> {
+    /**
+     * Retrieves all resources for a given tenant ID.
+     * If the resources are not cached, it creates them using the provided factories.
+     * @param tenantId - The ID of the tenant for which to retrieve resources.
+     * @returns A promise that resolves to a record of resources or undefined if no configuration is found.
+     */
+    async function getAll(tenantId: TenantId): Promise<Record<string, unknown> | undefined> {
         if (!inMemoryResourcesCache.has(tenantId)) {
             const resources = await createAll(tenantId)
 
@@ -32,7 +39,12 @@ export function tenantResourceResolverFactory<TenantId extends BaseTenantId, Ten
         inMemoryResourcesCache.clear()
     }
 
-    async function createAll(tenantId: TenantId): Promise<any | undefined> {
+    /**
+     * Creates all resources for a given tenant ID using the provided factories.
+     * @param tenantId - The ID of the tenant for which to create resources.
+     * @returns A promise that resolves to a record of created resources or undefined if no configuration is found.
+     */
+    async function createAll(tenantId: TenantId): Promise<Record<string, unknown> | undefined> {
         const resources: Record<string, any> = {}
         const tenantConfig = await configResolver.get(tenantId)
 
@@ -55,5 +67,6 @@ export function tenantResourceResolverFactory<TenantId extends BaseTenantId, Ten
     return {
         getAll,
         invalidateAll,
+        createAll,
     }
 }

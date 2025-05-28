@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
 import fp from 'fastify-plugin'
 
-import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, IdentifierStrategy, ResourceFactory } from './types.js'
+import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions } from './types.js'
 import { TenantRequiredError } from './errors/TenantRequiredError.js'
 import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
 import { TenantResourceNotFound } from './errors/TenantResourceNotFound.js'
