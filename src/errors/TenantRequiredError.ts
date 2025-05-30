@@ -1,9 +1,9 @@
 export class TenantRequiredError extends Error {
     statusCode: number
-    
-    constructor(message = 'Tenant is required') {
-        super(message)
+
+    constructor() {
+        super(`Tenant is required for this operation. Please ensure that the tenant is specified in the request.`)
         this.name = 'TenantRequiredError'
-        this.statusCode = 401
+        this.statusCode = 400
     }
 }

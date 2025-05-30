@@ -4,7 +4,8 @@ import fp from 'fastify-plugin'
 import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions } from './types.js'
 import { TenantRequiredError } from './errors/TenantRequiredError.js'
 import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
-import { TenantResourceNotFound } from './errors/TenantResourceNotFound.js'
+import { TenantResourcesNotFound } from './errors/TenantResourcesNotFound.js'
+import { TenantResourceCreateError } from './errors/TenantResourceCreateError.js'
 import { TenantConfigResolver, tenantConfigResolverFactory } from './tenant-config-resolver.js'
 import { TenantResourceResolver, tenantResourceResolverFactory } from './tenant-resource-resolver.js'
 import { identifyTenantFactory } from './tenant-identification.js'
@@ -59,7 +60,7 @@ const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantOptions<any>> = a
                     .get(tenantId)
                     .then(tenantConfig => {
                         if (!tenantConfig) {
-                            done(new TenantConfigurationNotFound)
+                            done(new TenantConfigurationNotFound(tenantId))
                             return
                         }
 
@@ -68,21 +69,18 @@ const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantOptions<any>> = a
                             .getAll(tenantId)
                             .then(tenantResources => {
                                 if (!tenantResources) {
-                                    //this.log.debug('No tenant resources found')
-                                    done(new TenantResourceNotFound)
+                                    done(new TenantResourcesNotFound(tenantId))
                                     return
                                 }
-
-                                //this.log.debug(`tenant configuration found`)
 
                                 //@ts-ignore
                                 request.tenant = tenantResources
 
                                 TenantResourcesAsyncLocalStorage.run(tenantResources, done)
                             })
-                            .catch(() => done(new TenantResourceNotFound))
+                            .catch((error) => done(new TenantResourceCreateError(tenantId, error && 'message' in error && error.message)))
                     })
-                    .catch(() => done(new TenantConfigurationNotFound))
+                    .catch(() => done(new TenantConfigurationNotFound(tenantId)))
             })
             .catch(() => done(new TenantRequiredError))
     })
