@@ -11,7 +11,8 @@ import { TenantResourceResolver, tenantResourceResolverFactory } from './tenant-
 import { identifyTenantFactory } from './tenant-identification.js'
 import { TenantResourcesAsyncLocalStorage } from './request-context.js'
 
-export { FastifyMultitenantOptions, ResourceFactoryConfig } from './types.js'
+export { FastifyMultitenantOptions, ResourceFactoryConfig, IdentifierStrategy } from './types.js'
+export { IdentifierStrategyFactory } from './strategies/types.js'
 export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
 export { tenantResourcesContext } from './request-context.js'
