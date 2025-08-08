@@ -1,41 +1,42 @@
-import { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
+import { FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
 import fp from 'fastify-plugin'
 
-import { BaseTenantConfig, BaseTenantId, FastifyMultitenantOptions, FastifyMultitenantRouteOptions } from './types.js'
+import { BaseTenantConfig, BaseTenantResources, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, ResourceName, TenantConfigProvider, TenantResourcesProvider } from './types.js'
 import { TenantRequiredError } from './errors/TenantRequiredError.js'
 import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
 import { TenantResourcesNotFound } from './errors/TenantResourcesNotFound.js'
 import { TenantResourceCreateError } from './errors/TenantResourceCreateError.js'
-import { TenantConfigResolver, tenantConfigResolverFactory } from './tenant-config-resolver.js'
-import { TenantResourceResolver, tenantResourceResolverFactory } from './tenant-resource-resolver.js'
+import { tenantConfigProviderFactory } from './providers/tenant-config-provider.js'
+import { tenantResourceProviderFactory } from './providers/tenant-resource-provider.js'
 import { identifyTenantFactory } from './tenant-identification.js'
 import { TenantResourcesAsyncLocalStorage } from './request-context.js'
 
-export { FastifyMultitenantOptions, ResourceFactoryConfig, IdentifierStrategy } from './types.js'
+export { FastifyMultitenantOptions, TenantResourceFactory, TenantResourceConfig, TenantResourceConfigs, IdentifierStrategy, TenantConfigResolver, TenantResourceOnDeleteHook, TenantId } from './types.js'
 export { IdentifierStrategyFactory } from './strategies/types.js'
 export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
 export { tenantResourcesContext } from './request-context.js'
+export { createTenantResourceConfig } from './utils.js'
 
 declare module "fastify" {
     interface FastifyInstance {
-        tenants: {
-            config: TenantConfigResolver<BaseTenantId, BaseTenantConfig>
-            resources: TenantResourceResolver<BaseTenantId>
+        multitenant: {
+            configProvider: TenantConfigProvider<BaseTenantConfig>
+            resourceProvider: TenantResourcesProvider<BaseTenantResources>
         }
     }
 }
 
-const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantOptions<any>> = async (fastify, opts) => {
+async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources>(fastify: FastifyInstance, opts: FastifyMultitenantOptions<TenantConfig, TenantResources>) {
     const identifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
-    const configResolver = tenantConfigResolverFactory(opts.tenantConfigResolver)
-    const resourceResolver = tenantResourceResolverFactory(opts.resourceFactories, configResolver)
+    const configProvider = tenantConfigProviderFactory<TenantConfig>(opts.tenantConfigResolver)
+    const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>(opts.resources, configProvider)
 
     fastify.decorate(
-        'tenants',
+        'multitenant',
         {
-            config: configResolver,
-            resources: resourceResolver
+            configProvider: configProvider,
+            resourceProvider: resourceProvider
         }
     )
 
@@ -57,16 +58,16 @@ const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantOptions<any>> = a
                 }
 
                 // RESOLVE TENANT CONFIG
-                configResolver
+                configProvider
                     .get(tenantId)
-                    .then(tenantConfig => {
+                    .then((tenantConfig) => {
                         if (!tenantConfig) {
                             done(new TenantConfigurationNotFound(tenantId))
                             return
                         }
 
                         // RESOLVE TENANT RESOURCES
-                        resourceResolver
+                        resourceProvider
                             .getAll(tenantId)
                             .then(tenantResources => {
                                 if (!tenantResources) {

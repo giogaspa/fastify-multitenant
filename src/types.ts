@@ -2,32 +2,70 @@ import { FastifyPluginOptions, FastifyRequest } from "fastify"
 
 export type IdentifierStrategy = (request: FastifyRequest) => string | undefined | Promise<string | undefined>
 
-export type BaseTenantId = string
+export type TenantId = string
 
 export type BaseTenantConfig = {
-    id: BaseTenantId
+    id: TenantId
 }
 
-export type ResourceFactoryConfig<TenantConfig extends BaseTenantConfig> = {
-    config: TenantConfig
-    resources: any
+export type ResourceName = string
+
+export type BaseTenantResources = Record<ResourceName, any>
+
+/** 
+ * Configuration for resource factory functions.
+ * 
+ * @param tenantConfig The tenant configuration.
+ * @param resources The already created resources for the tenant.
+ */
+export type TenantResourceFactoryArgs<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources> = {
+    tenantConfig: TenantConfig
+    resources: Partial<TenantResources>
 }
 
-export type ResourceFactoryFunction<TenantConfig extends BaseTenantConfig> = (config: ResourceFactoryConfig<TenantConfig>) => any | Promise<any>
+/**
+ * Function that creates a resource for a tenant.
+ */
+export type TenantResourceFactory<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = (args: TenantResourceFactoryArgs<TenantConfig, TenantResources>) => Promise<ResourceType>
 
-export type ResourceFactory<TenantConfig extends BaseTenantConfig> = {
-    factory: ResourceFactoryFunction<TenantConfig>
+/**
+ * Function that runs before a resource is deleted by provider.
+ * 
+ * @param resource The resource to delete.
+ */
+export type TenantResourceOnDeleteHook<ResourceType> = (resource: ResourceType) => Promise<void>
+
+export type TenantResourceConfig<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = {
+    factory: TenantResourceFactory<TenantConfig, TenantResources, ResourceType>
+    onDelete?: TenantResourceOnDeleteHook<ResourceType>
     cacheTtl?: number
-} | ResourceFactoryFunction<TenantConfig>
+} | TenantResourceFactory<TenantConfig, TenantResources, ResourceType>
 
-export type ResourceFactories<TenantConfig extends BaseTenantConfig> = Record<string, ResourceFactory<TenantConfig>>
+export type TenantResourceConfigs<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = Record<ResourceName, TenantResourceConfig<TenantConfig, TenantResources, ResourceType>>;
 
-export type ConfigResolver<TenantConfig extends BaseTenantConfig> = (tenantId: BaseTenantId) => Promise<TenantConfig | undefined>
+/**
+ * Service for managing tenant resources.
+ * Provides methods to create, retrieve, and invalidate resources for a specific tenant.
+ */
+export type TenantResourcesProvider<TenantResources> = {
+    createAll: (tenantId: TenantId) => Promise<TenantResources | undefined>
+    getAll: (tenantId: TenantId) => Promise<TenantResources | undefined>
+    invalidate: (tenantId: TenantId) => Promise<void>
+    invalidateAll: () => Promise<void>
+}
 
-export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig> = FastifyPluginOptions & {
+export type TenantConfigResolver<TenantConfig extends BaseTenantConfig> = (tenantId: TenantId) => Promise<TenantConfig | undefined>
+
+export type TenantConfigProvider<TenantConfig extends BaseTenantConfig> = {
+    get: TenantConfigResolver<TenantConfig>
+    invalidate: (tenantId: TenantId) => Promise<void>
+    invalidateAll: () => Promise<void>
+}
+
+export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources> = FastifyPluginOptions & {
     tenantIdentifierStrategies: Array<IdentifierStrategy>
-    tenantConfigResolver: ConfigResolver<TenantConfig>
-    resourceFactories: ResourceFactories<TenantConfig>
+    tenantConfigResolver: TenantConfigResolver<TenantConfig>
+    resources: TenantResourceConfigs<TenantConfig, TenantResources>
 }
 
 export type FastifyMultitenantRouteOptions = {

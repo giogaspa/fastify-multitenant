@@ -1,13 +1,14 @@
 import { FastifyRequest } from "fastify"
-import { BaseTenantId, IdentifierStrategy } from "./types.js"
+
+import { TenantId, IdentifierStrategy } from "./types.js"
 
 export function identifyTenantFactory(strategies: IdentifierStrategy[]) {
     if (!strategies || strategies.length === 0) {
         return async () => undefined
     }
 
-    return async function identifyTenant(request: FastifyRequest): Promise<BaseTenantId | undefined> {
-        let tenantId: BaseTenantId | undefined = undefined
+    return async function identifyTenant(request: FastifyRequest): Promise<TenantId | undefined> {
+        let tenantId: TenantId | undefined = undefined
 
         for (const strategyFn of strategies) {
             tenantId = await strategyFn(request)

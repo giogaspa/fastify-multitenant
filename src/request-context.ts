@@ -1,13 +1,15 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { ResourceName } from './types.js'
+
 type TenantResourcesStore = {
-    [key: string]: unknown
+    [key: ResourceName]: unknown
 }
 
 export const TenantResourcesAsyncLocalStorage = new AsyncLocalStorage<TenantResourcesStore>()
 
 export const tenantResourcesContext = {
-    get: (key: string) => {
+    get: (key: ResourceName) => {
         const store = TenantResourcesAsyncLocalStorage.getStore()
         return store ? store[key] : undefined
     },
