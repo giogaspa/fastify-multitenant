@@ -1,74 +1,100 @@
-import { FastifyInstance, FastifyPluginAsync } from "fastify";
-import fp from "fastify-plugin";
+import { FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
+import fp from 'fastify-plugin'
 
-import "./@types/fastify";
-import { FastifyMultitenantPluginOptions } from "./@types/plugin";
-import { resolverTenantFactory } from "./resolver/resolverTenantFactory";
-import { TenantConnectionPool } from "./repository/TenantConnectionPool";
-import { badRequest } from "./util";
+import { BaseTenantConfig, BaseTenantResources, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, ResourceName, TenantConfigProvider, TenantResourcesProvider } from './types.js'
+import { TenantRequiredError } from './errors/TenantRequiredError.js'
+import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
+import { TenantResourcesNotFound } from './errors/TenantResourcesNotFound.js'
+import { TenantResourceCreateError } from './errors/TenantResourceCreateError.js'
+import { tenantConfigProviderFactory } from './providers/tenant-config-provider.js'
+import { tenantResourceProviderFactory } from './providers/tenant-resource-provider.js'
+import { identifyTenantFactory } from './tenant-identification.js'
+import { TenantResourcesAsyncLocalStorage } from './request-context.js'
 
-// Export repositories
-export { InMemoryRepository } from './repository/InMemoryRepository';
-export { JsonRepository } from './repository/JsonRepository';
-export { PostgreSQLRepository, DEFAULT_TENANTS_TABLE_NAME } from './repository/PostgreSQLRepository';
+export { FastifyMultitenantOptions, TenantResourceFactory, TenantResourceConfig, TenantResourceConfigs, IdentifierStrategy, TenantConfigResolver, TenantResourceOnDeleteHook, TenantId } from './types.js'
+export { IdentifierStrategyFactory } from './strategies/types.js'
+export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
+export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
+export { tenantResourcesContext } from './request-context.js'
+export { createTenantResourceConfig } from './utils.js'
 
-// Export resolvers
-export { HostnameResolver } from './resolver/HostnameResolver';
-export { HttpHeaderResolver } from './resolver/HttpHeaderResolver';
-export { Resolver } from './resolver/Resolver';
+declare module "fastify" {
+    interface FastifyInstance {
+        multitenant: {
+            configProvider: TenantConfigProvider<BaseTenantConfig>
+            resourceProvider: TenantResourcesProvider<BaseTenantResources>
+        }
+    }
+}
 
-// Export abstract tenant request repository
-export { RequestTenantRepository, getRequestTenantDB, getRequestTenant } from './requestContext';
+async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources>(fastify: FastifyInstance, opts: FastifyMultitenantOptions<TenantConfig, TenantResources>) {
+    const identifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
+    const configProvider = tenantConfigProviderFactory<TenantConfig>(opts.tenantConfigResolver)
+    const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>(opts.resources, configProvider)
 
-export { Tenant } from "./@types/plugin";
-export { createMigrationsTableQuery as postgresCreateMigrationsTableQuery } from './migrations/postgres/util';
+    fastify.decorate(
+        'multitenant',
+        {
+            configProvider: configProvider,
+            resourceProvider: resourceProvider
+        }
+    )
 
-const PLUGIN_NAME: string = '@giogaspa/fastify-multitenant';
+    fastify.decorateRequest('tenant', null)
 
-const fastifyMultitenant: FastifyPluginAsync<FastifyMultitenantPluginOptions> = async (server: FastifyInstance, options: FastifyMultitenantPluginOptions) => {
-  const { tenantsRepository } = options;
+    fastify.addHook('onRequest', function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
+        if (isExcludedRoute(request)) {
+            //this.log.debug('Route is excluded from multitenancy')
+            done()
+            return
+        }
 
-  //server.log.debug(`Registered Fastify Multitenant Plugin`);
+        // IDENTIFY TENANT
+        identifyTenant(request)
+            .then(tenantId => {
+                if (!tenantId) {
+                    done(new TenantRequiredError)
+                    return
+                }
 
-  await tenantsRepository.init();
-  server.decorate('tenantsRepository', tenantsRepository);
+                // RESOLVE TENANT CONFIG
+                configProvider
+                    .get(tenantId)
+                    .then((tenantConfig) => {
+                        if (!tenantConfig) {
+                            done(new TenantConfigurationNotFound(tenantId))
+                            return
+                        }
 
-  // Add tenant connection pool
-  server.decorate('tenantConnectionPool', new TenantConnectionPool(server));
+                        // RESOLVE TENANT RESOURCES
+                        resourceProvider
+                            .getAll(tenantId)
+                            .then(tenantResources => {
+                                if (!tenantResources) {
+                                    done(new TenantResourcesNotFound(tenantId))
+                                    return
+                                }
 
-  // Add tenant to request
-  server.decorateRequest('tenant', undefined);
+                                //@ts-ignore
+                                request.tenant = tenantResources
 
-  // Add tenant DB to request
-  server.decorateRequest('tenantDB', undefined);
+                                TenantResourcesAsyncLocalStorage.run(tenantResources, done)
+                            })
+                            .catch((error) => done(new TenantResourceCreateError(tenantId, error && 'message' in error && error.message)))
+                    })
+                    .catch(() => done(new TenantConfigurationNotFound(tenantId)))
+            })
+            .catch(() => done(new TenantRequiredError))
+    })
+}
 
-  // Add isAdmin function to request
-  server.decorateRequest('isTenantAdmin', false);
+export default fp(fastifyMultitenant, {
+    fastify: '5.x',
+    name: '@giogaspa/fastify-multitenant'
+})
 
-  // Add badRequest to reply
-  server.decorateReply('tenantBadRequest', badRequest);
+function isExcludedRoute(request: FastifyRequest) {
+    const { routeOptions } = request as FastifyRequest & { routeOptions: FastifyMultitenantRouteOptions }
 
-  // TODO to implement...maybe
-  // When fastify is ready run repository setup()
-  /*   server.addHook('onReady', async function () {
-      // During repository setup check table existence or other stuff
-      await this.tenantsRepository.setup()
-    }) */
-
-  // Execute resolver on request
-  server.addHook('onRequest', resolverTenantFactory(server, options));
-
-  // On close server disconnect from db
-  server.addHook('onClose', async (server) => {
-    await server.tenantsRepository.shutdown();
-    await server.tenantConnectionPool.shutdown();
-  });
-
-};
-
-export default fp(fastifyMultitenant,
-  {
-    name: PLUGIN_NAME,
-    fastify: '^4.26.2'
-  }
-);
+    return routeOptions?.config?.fastifyMultitenant?.exclude === true
+}
