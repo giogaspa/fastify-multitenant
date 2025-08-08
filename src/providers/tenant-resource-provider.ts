@@ -44,7 +44,7 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
             for (const [name, resource] of Object.entries(tenantResources!)) {
                 const config = resourceConfigs[name]
 
-                if ('onDelete' in config && typeof config.onDelete === 'function') {
+                if (typeof config === 'object' && 'onDelete' in config && typeof config.onDelete === 'function') {
                     await config.onDelete(resource)
                 }
             }
@@ -59,7 +59,10 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
      * This is useful when you want to ensure that all resources are recreated on the next request
      */
     async function invalidateAll() {
-        //TODO: call onDelete hook for each resource factory
+        for (const [tenantId] of inMemoryResourcesCache.entries()) {
+            await invalidate(tenantId)
+        }
+
         inMemoryResourcesCache.clear()
     }
 

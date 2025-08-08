@@ -94,4 +94,20 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             return { msg: 'No tenant route' }
         }
     )
+
+    server.get(
+        '/invalidate-all',
+        {
+            config: {
+                fastifyMultitenant: {
+                    exclude: true
+                }
+            }
+        },
+        async (request, reply) => {
+            await server.multitenant.resourceProvider.invalidateAll()
+
+            return { msg: 'Invalidated all tenant resources!' }
+        }
+    )
 }
