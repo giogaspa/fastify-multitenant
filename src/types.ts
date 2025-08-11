@@ -38,7 +38,6 @@ export type TenantResourceOnDeleteHook<ResourceType> = (resource: ResourceType) 
 export type TenantResourceConfig<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = {
     factory: TenantResourceFactory<TenantConfig, TenantResources, ResourceType>
     onDelete?: TenantResourceOnDeleteHook<ResourceType>
-    cacheTtl?: number
 } | TenantResourceFactory<TenantConfig, TenantResources, ResourceType>
 
 export type TenantResourceConfigs<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = Record<ResourceName, TenantResourceConfig<TenantConfig, TenantResources, ResourceType>>;

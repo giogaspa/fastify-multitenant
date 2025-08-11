@@ -1,4 +1,4 @@
-# Fastify Multi-Tenancy Plugin
+# Fastify Multi-Tenancy Plugin v1
 
 A flexible multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
 
@@ -12,20 +12,16 @@ Examples:
 
 - 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`, `cookieIdentifierStrategy`,...)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
-- 🔁 **Access other resources inside a resource factory**
+- 🔁 **Access other tenant resources inside a resource factory**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
 
 ### In progress
 
-- ⚡ **Per-resource caching and expiration**
-- 🧠 **Cache `resolveTenantConfig` results with expiration and manual reset**
-- 🧹 **Graceful connection cleanup with idle expiration**
+- ⚡ **Cache tenant configs and tenant resources with expiration and manual reset**
 - 🪝 **Lifecycle hooks per resource**
 
 ### In future/Maybe
 
-- 🔧 **Run migrations and seed per tenant or main database**
-- 🌱 **Dynamically register tenants via API**
 - 📈 **Resources memory consumption**
 
 > 💡 The plugin is **not tied to any specific database or ORM**.
@@ -161,7 +157,6 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
 |------------------|-----------------------------------------|-------------------------------------------------------|
 | `factory`        | `TenantResourceFactory<TenantConfig, TenantResources, ResourceType>` | Function that create the resource. |
 | `onDelete?`        | `TenantResourceOnDeleteHook<ResourceType>` | Function that runs before a resource is deleted by resources provider. Here you can perform any cleanup if needed, es: close DB connection,... |
-| ~~`cacheTtl?`~~          | ~~`number`~~                               | ~~TTL for idle resource cleanup (default=-1).~~         |
 
 ---
 

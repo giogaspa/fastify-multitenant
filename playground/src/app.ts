@@ -48,6 +48,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
             return adminDB.query.tenantsConfig.findFirst({ where: eq(AdminSchema.tenantsConfig.id, tenantId) })
         },
         resources: {
+            // Define the resource using the `createTenantResourceConfig` function...
             ...createTenantResourceConfig({
                 name: 'id',
                 factory: async ({ tenantConfig }) => {
@@ -60,6 +61,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
                     // Here you can perform any cleanup if needed
                 }
             }),
+            // ... or define the resource passing the factory directly
             db: async ({ tenantConfig, resources }) => {
                 server.log.debug(`[${tenantConfig.id}]: Creating db client`)
                 server.log.debug(`[${tenantConfig.id}]: Id resource: ${resources.id}`)
