@@ -1,10 +1,28 @@
 # Fastify Multi-Tenancy Plugin v1
 
-A flexible multi-tenancy plugin for Fastify, written in **TypeScript**. It supports multiple tenant detection strategies and allows dynamic registration and isolation of tenant-specific resources like databases, APIs, or any custom service.
+A flexible multi-tenancy plugin for Fastify that simplifies building multi-tenant applications by handling tenant detection, configuration, and resource isolation.
 
 Examples:
 
 - [Playground](playground/README.md) (sqlite)
+
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [How It Works](#-how-it-works)
+- [Tenant Identification](#tenant-identification)
+- [Configuration Resolution](#configuration-resolution)
+- [Resource Initialization](#resource-initialization)
+- [Plugin Options](#plugin-options)
+- [Plugin Decorators](#plugin-decorators)
+- [TypeScript: Declaration Merging](#typescript-declaration-merging)
+- [Advanced: Tenant Resources Context](#advanced-tenant-resources-context)
+- [Performance Considerations](#performance-considerations)
+- [License](#license)
+
 
 ## Features
 
@@ -26,11 +44,13 @@ Examples:
 
 > 💡 The plugin is **not tied to any specific database or ORM**.
 
-## Install
+
+## Installation
 
 ```sh
 npm install @giogaspa/fastify-multitenant
 ```
+
 
 ### Compatibility
 
@@ -39,19 +59,12 @@ npm install @giogaspa/fastify-multitenant
 | `>=1.x`        | `^5.x`          |
 | `^0.x`         | `^4.x`          |
 
-## 🤖 How It Works
 
-1. **Tenant Identifier Strategies** → figure out which tenant is making the request.
-2. **Tenant Config Resolver** → fetches the tenant's configuration (like DB URL, API keys,...).
-3. **Resources Factories** → use that configuration to create tenant-specific resources and cache them.
-
----
-
-## 🔧 Full Example Configuration
+## Quick Start
 
 ```ts
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
-import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
+import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
 
 declare module "fastify" {
     interface FastifyRequest {
@@ -84,8 +97,6 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
     const options: FastifyMultitenantOptions<TenantConfigType, TenantResourcesType> = {
         tenantIdentifierStrategies: [
             headerIdentifierStrategy('X-TENANT-ID'),
-            pathPrefixIdentifierStrategy(),
-            userCustomIdentifierStrategy(),
         ],
         tenantConfigResolver: async (tenantId) => {
             return tenantConfigs.get(tenantId)
@@ -141,34 +152,19 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
 }
 ```
 
----
 
-## ⚙️ Plugin Options Reference
+## How It Works
 
-| Option                      | Type                                                       | Description                                                                 |
-|-----------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `tenantIdentifierStrategies` | `Array<IdentifierStrategy>`                                | Strategies to extract tenant ID from request. |
-| `tenantConfigResolver`      | `TenantConfigResolver<TenantConfig>`              | Fetch tenant-specific configuration. |
-| `resources`        | `TenantResourceConfigs<TenantConfig, TenantResources>`  | Defines how to create tenant-specific resources. |
+This plugin operates in a three-step process to manage multi-tenancy:
 
-### `TenantResourceConfig<TenantConfig, TenantResources, Resource>`
+1. **Tenant Identification** - Detects which tenant is making the request using configurable strategies
+2. **Configuration Resolution** - Retrieves tenant-specific configuration data (connection strings, API keys, etc.)
+3. **Resource Initialization** - Creates and caches tenant-specific resources based on the configuration
 
-| Property         | Type                                    | Description                                           |
-|------------------|-----------------------------------------|-------------------------------------------------------|
-| `factory`        | `TenantResourceFactory<TenantConfig, TenantResources, ResourceType>` | Function that create the resource. |
-| `onDelete?`        | `TenantResourceOnDeleteHook<ResourceType>` | Function that runs before a resource is deleted by resources provider. Here you can perform any cleanup if needed, es: close DB connection,... |
 
----
+## Tenant Identification
 
-## 🤖 In deep explanation
-
-...
-
----
-
-## 🔍 Tenant Identifier Strategies (Step 1)
-
-Tenant identification is configured using an array of detector functions. These are called in order until one returns a valid tenant ID.
+The plugin uses composable strategies to identify which tenant is making a request. You can configure multiple strategies that will be executed in sequence until one returns a valid tenant ID.
 
 ### Built-in strategies
 
@@ -176,16 +172,14 @@ Tenant identification is configured using an array of detector functions. These 
 headerIdentifierStrategy(headerName: string): IdentifierStrategy
 cookieIdentifierStrategy(cookieName: string): IdentifierStrategy
 queryParamIdentifierStrategy(param: string): IdentifierStrategy
-customIdentifierStrategy(fn: (req: FastifyRequest) => string | undefined): IdentifierStrategy
 ```
 
-### Example
+Example:
 
 ```ts
 tenantIdentifierStrategies: [
   headerIdentifierStrategy('X-TENANT-ID'),
   queryParamIdentifierStrategy('tenant_id'),
-  customIdentifierStrategy((req) => req.headers['x-fallback-tenant'])
 ]
 ```
 
@@ -199,22 +193,21 @@ You can also write your own:
 const myStrategy = () => (req) => req.headers['my-header'];
 ```
 
----
 
-## 🔧 Tenant Config Resolver (Step 2)
+## Configuration Resolution
 
-After a tenant ID is detected, the plugin calls the tenant configuration resolver to fetch **configuration** for that tenant.
+After identifying the tenant ID through the configured strategies, the plugin invokes your `tenantConfigResolver` function to retrieve tenant-specific configuration data. This configuration serves as the foundation for initializing tenant-specific resources.
 
 ### Purpose
 
-The tenant configuration object should include information needed by the resources factory, e.g.:
+The tenant configuration object should include information needed by the resource factories, e.g.:
 
 - Database connection string,
 - API keys (e.g., OpenAI, Stripe,...),
 - Feature flags or environment settings,
 - etc.
 
-### Example
+Example:
 
 ```ts
 tenantConfigResolver: async (tenantId) => {
@@ -229,22 +222,27 @@ tenantConfigResolver: async (tenantId) => {
 }
 ```
 
-This configuration is passed to all resource factories for that tenant.
+This configuration is retrieved once per tenant and then passed to all resource factories for that tenant, serving as the foundation for initializing tenant-specific resources such as databases, APIs, or services.
 
-### 🔧 Programmatic reset of tenants configuration cache
+### Clearing tenant configuration cache programmatically
 
 ```ts
 await fastify.multitenant.configProvider.invalidate('tenantId');
 await fastify.multitenant.configProvider.invalidateAll();
 ```
 
----
 
-## 🔨 Resource Factories (Step 3)
+## Resource Initialization
 
-Register one or more resources per tenant. Factories can reference other already-initialized resources (declared before them).
+The plugin allows you to define and initialize tenant-specific resources (like databases, API clients, or services) that are automatically managed based on tenant context. Each resource is:
 
-### Factory Signature
+1. Created on-demand when first needed
+2. Cached for subsequent requests to the same tenant
+3. Isolated between different tenants
+
+Resources are defined as a collection of factory functions that can depend on previously initialized resources, creating a dependency chain.
+
+### Factory function signature
 
 ```ts
 (args: { tenantConfig: TenantConfig, resources: Partial<TenantResources>}) => Promise<Resource>
@@ -253,7 +251,7 @@ Register one or more resources per tenant. Factories can reference other already
 - `tenantConfig`: result of `resolveTenantConfig(tenantId)`
 - `resources`: other initialized resources so far (in declaration order)
 
-### Example
+Example:
 
 ```ts
 resources: {
@@ -267,9 +265,27 @@ resources: {
 }
 ```
 
+
+## Plugin Options
+
+| Option                      | Type                                                       | Description                                                                 |
+|-----------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `tenantIdentifierStrategies` | `Array<IdentifierStrategy>`                                | Strategies to extract tenant ID from request. |
+| `tenantConfigResolver`      | `TenantConfigResolver<TenantConfig>`              | Fetch tenant-specific configuration. |
+| `resources`        | `TenantResourceConfigs<TenantConfig, TenantResources>`  | Defines how to create tenant-specific resources. |
+
+### `TenantResourceConfig<TenantConfig, TenantResources, Resource>`
+
+This type defines how to create and manage tenant-specific resources:
+
+| Property         | Type                                    | Description                                           |
+|------------------|-----------------------------------------|-------------------------------------------------------|
+| `factory`        | `TenantResourceFactory<TenantConfig, TenantResources, ResourceType>` | Function that create the resource. |
+| `onDelete?`        | `TenantResourceOnDeleteHook<ResourceType>` | Function that runs before a resource is deleted by resources provider. Here you can perform any cleanup if needed, es: close DB connection,... |
+
 ---
 
-## Fastify Decorators
+## Plugin Decorators
 
 | Property         | Type          | Description                                    |
 |-----------------|---------------|------------------------------------------------|
@@ -281,6 +297,7 @@ resources: {
 | `fastify.multitenant.configProvider.get` | `(tenantId: TenantId) => Promise<TenantConfig \| undefined>` | ... |
 | `fastify.multitenant.configProvider.invalidate` | `(tenantId: TenantId) => Promise<void>` | Invalidate the cached configuration for a specific tenant. |
 | `fastify.multitenant.configProvider.invalidateAll` | `() => Promise<void>` | Invalidate all cached tenant configurations. |
+
 
 ## TypeScript: Declaration Merging
 
@@ -299,37 +316,50 @@ declare module 'fastify' {
 }
 ```
 
-## Advanced: Tenant resources context
+## Advanced: Tenant Resources Context
 
-Get resources from `tenantResourcesContext` context:
+Access tenant resources from anywhere in your code using the async local storage-based context:
 
-| Method         | Type          | Description                                    |
-|-----------------|---------------|------------------------------------------------|
-| `tenantResourcesContext.get` | `(key: ResourceName) => unknown` | Tenant-scoped resource for the current request |
-| `tenantResourcesContext.getAll` | `() => TenantResourcesStore \| undefined` | Tenant-scoped resources for the current request |
+| Method | Type | Description |
+|--------|------|-------------|
+| `tenantResourcesContext.get(key)` | `(key: ResourceName) => unknown` | Retrieves a specific tenant resource for the current request |
+| `tenantResourcesContext.getAll()` | `() => TenantResourcesStore \| undefined` | Gets all tenant resources for the current request |
 
 Example:
 
 ```ts
 import { tenantResourcesContext } from '@giogaspa/fastify-multitenant'
 
+// This function can be called from anywhere in your application code
+// and will have access to the current tenant's resources
 async function getUsers() {
-    const db = tenantResourcesContext.get('db'); // Specify resource name
-    const users = await db.query('SELECT * FROM users');
-
-    return users;
+    const db = tenantResourcesContext.get('db');
+    return await db.query('SELECT * FROM users');
 }
 
-...
-
+// Use in a route handler
 fastify.get('/users', async () => {
-    return getUsers()
+    return getUsers();
 })
 
-
-const allTenantResources = tenantResourcesContext.getAll();
-
+// Get all resources at once
+fastify.get('/tenant-info', async () => {
+    const resources = tenantResourcesContext.getAll();
+    return {
+        dbStatus: await resources.db.status(),
+        apiConnected: resources.api.isConnected()
+    };
+})
 ```
+
+> **Note**: The tenant resources context is tied to the request lifecycle. Make sure you're accessing it within the scope of a request.
+
+
+## Performance Considerations
+
+- The plugin caches tenant configurations and resources to minimize overhead
+- Resources are created on-demand and cached for subsequent requests
+
 
 ## License
 
