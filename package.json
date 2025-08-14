@@ -25,8 +25,8 @@
   "scripts": {
     "dev": "tsup --watch --sourcemap",
     "build": "tsup",
-    "test": "node --loader ts-node/esm --test test/**/*.test.ts",
-    "test:coverage": "node --loader ts-node/esm --test --experimental-test-coverage test/**/*.test.ts"
+    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage  dist/test/**/*.test.js"
   },
   "engines": {
     "node": ">=20.0.0"
