@@ -5,6 +5,7 @@ import test from "node:test"
 import fastify from "fastify"
 
 import fastifyMultitenant, { createTenantResourceConfig, FastifyMultitenantOptions, headerIdentifierStrategy } from '../src/index.js'
+import { tenantConfigProviderFactory } from "../src/providers/tenant-config-provider.js"
 
 declare module "fastify" {
     interface FastifyRequest {
@@ -95,3 +96,21 @@ function simpleGreetingsStorageFactory(...args: string[]) {
         get: (id: number) => storage.get(id),
     };
 }
+
+test('Check thread safe configuration initialization', async () => {
+    const configProvider = tenantConfigProviderFactory<TenantConfig>(async (tenantId) => ({
+        id: tenantId,
+        name: `Tenant ${tenantId}`,
+        greetings: ['Hello', 'Hi']
+    }))
+
+    // Concurrently request the same tenant configuration
+    const [res1, res2] = await Promise.all([
+        configProvider.get('tenant1'),
+        configProvider.get('tenant1')
+    ])
+
+    // Should be the same instance
+    assert.strictEqual(res1, res2)
+
+})
