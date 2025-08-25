@@ -1,15 +1,13 @@
 import { BaseTenantConfig, TenantId, TenantConfigResolver, TenantConfigProvider } from "../types.js"
 
 export function tenantConfigProviderFactory<TenantConfig extends BaseTenantConfig>(resolve: TenantConfigResolver<TenantConfig>): TenantConfigProvider<TenantConfig> {
-    const inMemoryConfigCache = new Map<TenantId, TenantConfig>()
+    const inMemoryConfigCache = new Map<TenantId, Promise<TenantConfig | undefined>>()
 
     async function get(tenantId: TenantId): Promise<TenantConfig | undefined> {
+        // Singleton promise to ensure thread-safe initialization of resources
         if (!inMemoryConfigCache.has(tenantId)) {
-            const config = await resolve(tenantId)
-
-            if (config) {
-                inMemoryConfigCache.set(tenantId, config)
-            }
+            const config = resolve(tenantId)
+            inMemoryConfigCache.set(tenantId, config)
         }
 
         return inMemoryConfigCache.get(tenantId)
