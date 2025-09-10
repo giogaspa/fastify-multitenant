@@ -10,7 +10,7 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
     resourceConfigs: TenantResourceConfigs<TenantConfig, TenantResources>,
     configProvider: TenantConfigProvider<TenantConfig>
 ): TenantResourcesProvider<TenantResources> {
-    const inMemoryResourcesCache = new Map<TenantId, TenantResources>()
+    const inMemoryResourcesCache = new Map<TenantId, Promise<TenantResources | undefined>>()
 
     /**
      * Retrieves all resources for a given tenant ID.
@@ -20,18 +20,14 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
      */
     async function getAll(tenantId: TenantId): Promise<TenantResources | undefined> {
         if (!inMemoryResourcesCache.has(tenantId)) {
-            const resources = await createAll(tenantId)
-
-            if (!resources) {
-                return undefined
-            }
-
+            const resources = createAll(tenantId)
             inMemoryResourcesCache.set(tenantId, resources)
         }
 
         return inMemoryResourcesCache.get(tenantId)
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidates the cached resources for a specific tenant.
      * This clears the in-memory cache of resources for the specified tenant.
@@ -53,6 +49,7 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
         }
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidates all cached resources.
      * This clears the in-memory cache of resources for all tenants.

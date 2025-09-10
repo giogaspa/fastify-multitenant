@@ -5,6 +5,8 @@ import test from "node:test"
 import fastify from "fastify"
 
 import fastifyMultitenant, { createTenantResourceConfig, FastifyMultitenantOptions, headerIdentifierStrategy } from '../src/index.js'
+import { tenantConfigProviderFactory } from "../src/providers/tenant-config-provider.js"
+import { tenantResourceProviderFactory } from "../src/providers/tenant-resource-provider.js"
 
 declare module "fastify" {
     interface FastifyRequest {
@@ -95,3 +97,52 @@ function simpleGreetingsStorageFactory(...args: string[]) {
         get: (id: number) => storage.get(id),
     };
 }
+
+test('Check thread safe configuration initialization', async () => {
+    const configProvider = tenantConfigProviderFactory<TenantConfig>(async (tenantId) => ({
+        id: tenantId,
+        name: `Tenant ${tenantId}`,
+        greetings: ['Hello', 'Hi']
+    }))
+
+    // Concurrently request the same tenant configuration
+    const [res1, res2] = await Promise.all([
+        configProvider.get('tenant1'),
+        configProvider.get('tenant1')
+    ])
+
+    // Should be the same instance
+    assert.strictEqual(res1, res2)
+})
+
+test('Check thread safe resources initialization', async () => {
+    const configProvider = tenantConfigProviderFactory<TenantConfig>(async (tenantId) => ({
+        id: tenantId,
+        name: `Tenant ${tenantId}`,
+        greetings: ['Hello', 'Hi']
+    }))
+
+    const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>({
+        ...createTenantResourceConfig({
+            name: 'id',
+            factory: async ({ tenantConfig }) => {
+                return tenantConfig.id;
+            }
+        }),
+        ...createTenantResourceConfig({
+            name: 'greetingsProvider',
+            factory: async ({ tenantConfig }) => {
+                return simpleGreetingsStorageFactory(...tenantConfig.greetings);
+            }
+        }),
+    }, configProvider)
+
+    // Concurrently request the same tenant resources
+    const [res1, res2] = await Promise.all([
+        resourceProvider.getAll('tenant1'),
+        resourceProvider.getAll('tenant1'),
+    ])
+
+    // Should be the same instance
+    assert.strictEqual(res1, res2)
+})
