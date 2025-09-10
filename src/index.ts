@@ -16,7 +16,7 @@ export { IdentifierStrategyFactory } from './strategies/types.js'
 export { headerIdentifierStrategy } from './strategies/header-identifier-strategy.js'
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
 export { tenantResourcesContext } from './request-context.js'
-export { createTenantResourceConfig } from './utils.js'
+export { createTenantResourceConfig, CreateTenantResourceConfigArgs } from './utils.js'
 
 declare module "fastify" {
     interface FastifyInstance {
