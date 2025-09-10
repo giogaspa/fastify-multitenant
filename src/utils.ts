@@ -1,6 +1,6 @@
 import { BaseTenantConfig, TenantResourceFactory, ResourceName, TenantResourceOnDeleteHook, TenantResourceConfigs, BaseTenantResources } from "./types.js"
 
-type CreateTenantResourceConfigArgs<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = {
+export type CreateTenantResourceConfigArgs<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources, ResourceType = any> = {
     name: ResourceName;
     factory: TenantResourceFactory<TenantConfig, TenantResources, ResourceType>;
     onDelete?: TenantResourceOnDeleteHook<ResourceType>;
