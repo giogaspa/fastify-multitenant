@@ -13,6 +13,7 @@ export function tenantConfigProviderFactory<TenantConfig extends BaseTenantConfi
         return inMemoryConfigCache.get(tenantId)
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidate the cached configuration for a specific tenant.
      * 
@@ -24,6 +25,7 @@ export function tenantConfigProviderFactory<TenantConfig extends BaseTenantConfi
         }
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidate all cached tenant configurations.
      */

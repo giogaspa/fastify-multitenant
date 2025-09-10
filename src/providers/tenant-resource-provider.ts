@@ -27,6 +27,7 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
         return inMemoryResourcesCache.get(tenantId)
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidates the cached resources for a specific tenant.
      * This clears the in-memory cache of resources for the specified tenant.
@@ -48,6 +49,7 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
         }
     }
 
+    // FIXME: This function is not thread-safe.
     /**
      * Invalidates all cached resources.
      * This clears the in-memory cache of resources for all tenants.
