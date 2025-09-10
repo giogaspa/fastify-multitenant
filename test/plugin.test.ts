@@ -137,7 +137,7 @@ test('Check thread safe resources initialization', async () => {
         }),
     }, configProvider)
 
-    // Concurrently request the same tenant configuration
+    // Concurrently request the same tenant resources
     const [res1, res2] = await Promise.all([
         resourceProvider.getAll('tenant1'),
         resourceProvider.getAll('tenant1'),
