@@ -165,6 +165,7 @@ This plugin operates in a three-step process to manage multi-tenancy:
 ## Tenant Identification
 
 The plugin uses composable strategies to identify which tenant is making a request. You can configure multiple strategies that will be executed in sequence until one returns a valid tenant ID.
+By default, identification strategies are executed during the `onRequest` [hook](https://fastify.dev/docs/latest/Reference/Hooks/#onrequest), but you can configure which hook to use with the `hook` option.
 
 ### Built-in strategies
 
@@ -273,6 +274,7 @@ resources: {
 | `tenantIdentifierStrategies` | `Array<IdentifierStrategy>`                                | Strategies to extract tenant ID from request. |
 | `tenantConfigResolver`      | `TenantConfigResolver<TenantConfig>`              | Fetch tenant-specific configuration. |
 | `resources`        | `TenantResourceConfigs<TenantConfig, TenantResources>`  | Defines how to create tenant-specific resources. |
+| `hook` | `'onRequest' \| 'preParsing' \| 'preValidation' \| 'preHandler'` | Define in which lifecycle hook the current tenant is identified and its resources resolved. Default `onRequest` |
 
 ### `TenantResourceConfig<TenantConfig, TenantResources, Resource>`
 

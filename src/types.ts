@@ -65,6 +65,7 @@ export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig, Ten
     tenantIdentifierStrategies: Array<IdentifierStrategy>
     tenantConfigResolver: TenantConfigResolver<TenantConfig>
     resources: TenantResourceConfigs<TenantConfig, TenantResources>
+    hook?: 'onRequest' | 'preParsing' | 'preValidation' | 'preHandler' 
 }
 
 export type FastifyMultitenantRouteOptions = {
