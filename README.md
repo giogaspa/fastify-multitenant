@@ -18,6 +18,7 @@ Examples:
 - [Resource Initialization](#resource-initialization)
 - [Plugin Options](#plugin-options)
 - [Plugin Decorators](#plugin-decorators)
+- [Route Options](#route-options)
 - [TypeScript: Declaration Merging](#typescript-declaration-merging)
 - [Advanced: Tenant Resources Context](#advanced-tenant-resources-context)
 - [Performance Considerations](#performance-considerations)
@@ -140,7 +141,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
         '/no-tenant',
         {
             config: {
-                fastifyMultitenant: {
+                multitenant: {
                     exclude: true
                 }
             }
@@ -285,7 +286,6 @@ This type defines how to create and manage tenant-specific resources:
 | `factory`        | `TenantResourceFactory<TenantConfig, TenantResources, ResourceType>` | Function that create the resource. |
 | `onDelete?`        | `TenantResourceOnDeleteHook<ResourceType>` | Function that runs before a resource is deleted by resources provider. Here you can perform any cleanup if needed, es: close DB connection,... |
 
----
 
 ## Plugin Decorators
 
@@ -300,6 +300,51 @@ This type defines how to create and manage tenant-specific resources:
 | `fastify.multitenant.configProvider.invalidate` | `(tenantId: TenantId) => Promise<void>` | Invalidate the cached configuration for a specific tenant. |
 | `fastify.multitenant.configProvider.invalidateAll` | `() => Promise<void>` | Invalidate all cached tenant configurations. |
 
+## Route Options
+
+
+| Option                      | Type                                                       | Description                                                                 |
+|-----------------------------|------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `exclude?` | `boolean`                                | Skip the tenant identification process entirely. |
+| `identifierStrategy?`      | `IdentifierStrategy`              | Specify a custom tenant identification strategy function. |
+
+The `exclude` option allows you to specify routes that should skip the tenant identification process entirely. When set to `true` for a specific route, the plugin won't attempt to identify the tenant or initialize tenant-specific resources for requests to that route.
+
+This option is particularly useful for:
+- Public endpoints that don't require tenant-specific data,
+- Authentication endpoints before a tenant is known
+
+Usage Example:
+```ts
+    server.get(
+        '/no-tenant',
+        {
+            config: {
+                multitenant: {
+                    exclude: true
+                }
+            }
+        },
+        async (request, reply) => {
+            return { message: 'This endpoint works without a tenant' }
+        }
+```
+
+The `identifierStrategy` option allows you to specify a custom tenant identification method for individual routes. This overrides the global tenant identification strategies defined when registering the plugin.
+
+```ts
+    server.get(
+        '/no-tenant',
+        {
+            config: {
+                multitenant: {
+                    identifierStrategy: (request) => {
+                        // Route custom strategy for identify tenant id
+                    }
+                }
+            }
+        },
+```
 
 ## TypeScript: Declaration Merging
 
@@ -359,8 +404,9 @@ fastify.get('/tenant-info', async () => {
 
 ## Performance Considerations
 
-- The plugin caches tenant configurations and resources to minimize overhead
-- Resources are created on-demand and cached for subsequent requests
+- The plugin caches tenant configurations and resources to minimize overhead.
+- Resources are created on-demand and cached for subsequent requests.
+- The plugin uses [AsyncLocalStorage](https://nodejs.org/api/async_context.html#asynchronous-context-tracking) to bind tenant resources to the current request context.
 
 
 ## License

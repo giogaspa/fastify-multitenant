@@ -70,8 +70,9 @@ export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig, Ten
 
 export type FastifyMultitenantRouteOptions = {
     config?: {
-        fastifyMultitenant?: {
-            exclude?: boolean
+        multitenant?: {
+            exclude?: boolean,
+            identifierStrategy?: IdentifierStrategy
         }
     }
 }
