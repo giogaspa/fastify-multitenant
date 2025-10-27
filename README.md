@@ -276,6 +276,7 @@ resources: {
 | `tenantConfigResolver`      | `TenantConfigResolver<TenantConfig>`              | Fetch tenant-specific configuration. |
 | `resources`        | `TenantResourceConfigs<TenantConfig, TenantResources>`  | Defines how to create tenant-specific resources. |
 | `hook` | `'onRequest' \| 'preParsing' \| 'preValidation' \| 'preHandler'` | Define in which lifecycle hook the current tenant is identified and its resources resolved. Default `onRequest` |
+| `disableRequestContext` | boolean | Disable AsyncLocalStorage for request context tracking. Useful for performance optimization in high-throughput scenarios or when request context is not needed. **Implication:** If enabled, `context.get()` and `context.getAll()` will throw errors as tenant resources context will not be available. |
 
 ### `TenantResourceConfig<TenantConfig, TenantResources, Resource>`
 
@@ -299,6 +300,8 @@ This type defines how to create and manage tenant-specific resources:
 | `fastify.multitenant.configProvider.get` | `(tenantId: TenantId) => Promise<TenantConfig \| undefined>` | ... |
 | `fastify.multitenant.configProvider.invalidate` | `(tenantId: TenantId) => Promise<void>` | Invalidate the cached configuration for a specific tenant. |
 | `fastify.multitenant.configProvider.invalidateAll` | `() => Promise<void>` | Invalidate all cached tenant configurations. |
+| `fastify.multitenant.context.get` | `(key: ResourceName) => TenantResources\| undefined` | Get tenant resource `key` from current request context. |
+| `fastify.multitenant.context.getAll` | `() => TenantResources \| undefined` | Get all tenant resources from current request context. |
 
 ## Route Options
 

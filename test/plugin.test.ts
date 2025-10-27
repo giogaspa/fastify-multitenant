@@ -56,6 +56,14 @@ function testFactory(): { configurations: Map<string, TenantConfig>, options: Fa
     }
 }
 
+function simpleGreetingsStorageFactory(...args: string[]) {
+    const storage = new Map<number, string>(args.map((greeting, idx) => [idx, greeting]));
+
+    return {
+        get: (id: number) => storage.get(id),
+    };
+}
+
 test('Check tenant-specific responses', async () => {
     const app = fastify({ logger: false });
 
@@ -96,14 +104,6 @@ test('Check tenant-specific responses', async () => {
         );
     }
 })
-
-function simpleGreetingsStorageFactory(...args: string[]) {
-    const storage = new Map<number, string>(args.map((greeting, idx) => [idx, greeting]));
-
-    return {
-        get: (id: number) => storage.get(id),
-    };
-}
 
 test('Check thread safe configuration initialization', async () => {
     const configProvider = tenantConfigProviderFactory<TenantConfig>(async (tenantId) => ({
@@ -238,7 +238,7 @@ test('Custom route tenant identification strategy', async () => {
     )
 
     await app.ready();
-    
+
     // Test the route with custom tenant header
     const res = await app.inject({
         method: 'GET',
@@ -252,5 +252,74 @@ test('Custom route tenant identification strategy', async () => {
     assert.equal(
         res.body,
         'tenant2',
+    );
+})
+
+test('Disabled request context should throw error', async () => {
+    const app = fastify({ logger: false });
+
+    const { options } = testFactory()
+    options.disableRequestContext = true
+
+    await app.register(fastifyMultitenant, options);
+
+    // Define a route to test tenant-specific greetings
+    app.get(
+        '/current-tenant',
+        async function (this) {
+            return {
+                tenantIdInContext: this.multitenant.context.get('id'),
+            };
+        }
+    )
+
+    await app.ready();
+
+    // Test the route
+    const res = await app.inject({
+        method: 'GET',
+        url: `/current-tenant`,
+        headers: {
+            'X-TENANT-ID': 'tenant1',
+        }
+    })
+
+    assert.equal(res.statusCode, 500)
+    assert.match(res.body, /AsyncLocalStorage instance not initialized/)
+})
+
+test('Access resources from request context', async () => {
+    const app = fastify({ logger: false });
+
+    const { options } = testFactory()
+
+    await app.register(fastifyMultitenant, options);
+
+    // Define a route to test tenant-specific greetings
+    app.get(
+        '/current-tenant',
+        async function () {
+            return {
+                tenantIdInContext: this.multitenant.context.get('id'),
+            };
+        }
+    )
+
+    await app.ready();
+
+    // Test the route
+    const tenantId = 'tenant1'
+    const res = await app.inject({
+        method: 'GET',
+        url: `/current-tenant`,
+        headers: {
+            'X-TENANT-ID': tenantId,
+        }
+    })
+    const data = JSON.parse(res.body)
+
+    assert.equal(
+        data.tenantIdInContext,
+        tenantId,
     );
 })
