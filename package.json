@@ -46,11 +46,5 @@
   },
   "dependencies": {
     "fastify-plugin": "^5.0.1"
-  },
-  "files": [
-    "dist/**/*",
-    "README.md",
-    "LICENSE",
-    "package.json"
-  ]
+  }
 }
