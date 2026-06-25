@@ -65,12 +65,14 @@ export type FastifyMultitenantOptions<TenantConfig extends BaseTenantConfig, Ten
     tenantIdentifierStrategies: Array<IdentifierStrategy>
     tenantConfigResolver: TenantConfigResolver<TenantConfig>
     resources: TenantResourceConfigs<TenantConfig, TenantResources>
+    hook?: 'onRequest' | 'preParsing' | 'preValidation' | 'preHandler' 
 }
 
 export type FastifyMultitenantRouteOptions = {
     config?: {
-        fastifyMultitenant?: {
-            exclude?: boolean
+        multitenant?: {
+            exclude?: boolean,
+            identifierStrategy?: IdentifierStrategy
         }
     }
 }

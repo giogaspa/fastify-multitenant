@@ -2,7 +2,7 @@
 
 import assert from "node:assert"
 import test from "node:test"
-import fastify from "fastify"
+import fastify, { FastifyRequest } from "fastify"
 
 import fastifyMultitenant, { createTenantResourceConfig, FastifyMultitenantOptions, headerIdentifierStrategy } from '../src/index.js'
 import { tenantConfigProviderFactory } from "../src/providers/tenant-config-provider.js"
@@ -25,34 +25,41 @@ type TenantResources = {
     greetingsProvider: ReturnType<typeof simpleGreetingsStorageFactory>
 }
 
-test('Check tenant-specific responses', async () => {
-    const app = fastify({ logger: false });
-
-    const tenantConfigs = new Map<string, any>([
+function testFactory(): { configurations: Map<string, TenantConfig>, options: FastifyMultitenantOptions<TenantConfig, TenantResources> } {
+    const TENANT_CONFIGURATIONS = new Map<string, TenantConfig>([
         ['tenant1', { id: 'tenant1', name: 'Tenant 1', greetings: ['Hello', 'Hi'] }],
         ['tenant2', { id: 'tenant2', name: 'Tenant 2', greetings: ['Ciao', 'Buongiorno', 'Mandi'] }],
     ]);
 
-    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
-        tenantIdentifierStrategies: [
-            headerIdentifierStrategy('X-TENANT-ID'),
-        ],
-        tenantConfigResolver: async (tenantId) => tenantConfigs.get(tenantId),
-        resources: {
-            ...createTenantResourceConfig({
-                name: 'id',
-                factory: async ({ tenantConfig }) => {
-                    return tenantConfig.id;
-                }
-            }),
-            ...createTenantResourceConfig({
-                name: 'greetingsProvider',
-                factory: async ({ tenantConfig }) => {
-                    return simpleGreetingsStorageFactory(...tenantConfig.greetings);
-                }
-            }),
+    return {
+        configurations: TENANT_CONFIGURATIONS,
+        options: {
+            tenantIdentifierStrategies: [
+                headerIdentifierStrategy('X-TENANT-ID'),
+            ],
+            tenantConfigResolver: async (tenantId: string) => TENANT_CONFIGURATIONS.get(tenantId),
+            resources: {
+                ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                    name: 'id',
+                    factory: async ({ tenantConfig }) => {
+                        return tenantConfig.id;
+                    }
+                }),
+                ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                    name: 'greetingsProvider',
+                    factory: async ({ tenantConfig }) => {
+                        return simpleGreetingsStorageFactory(...tenantConfig.greetings);
+                    }
+                }),
+            }
         }
     }
+}
+
+test('Check tenant-specific responses', async () => {
+    const app = fastify({ logger: false });
+
+    const { configurations, options } = testFactory()
 
     await app.register(fastifyMultitenant, options);
 
@@ -71,7 +78,7 @@ test('Check tenant-specific responses', async () => {
 
     // Test with all tenants
     const greetingId = 0
-    const tenantIds = tenantConfigs.keys()
+    const tenantIds = configurations.keys()
 
     for (const tenantId of tenantIds) {
         const res = await app.inject({
@@ -84,7 +91,7 @@ test('Check tenant-specific responses', async () => {
 
         assert.equal(
             res.payload,
-            tenantConfigs.get(tenantId).greetings[greetingId],
+            configurations.get(tenantId)!.greetings[greetingId],
             `Should return the correct greeting for the tenant "${tenantId}"`
         );
     }
@@ -145,4 +152,105 @@ test('Check thread safe resources initialization', async () => {
 
     // Should be the same instance
     assert.strictEqual(res1, res2)
+})
+
+test('Exclude route from multitenancy', async () => {
+    const app = fastify({ logger: false });
+
+    const { options } = testFactory()
+
+    await app.register(fastifyMultitenant, options);
+
+    // Define a route to test tenant-specific greetings
+    app
+        .get('/with-tenant', async (request) => {
+            return request.tenant.id;
+        })
+
+    // Define an excluded route
+    app
+        .get('/without-tenant',
+            {
+                config: {
+                    multitenant: {
+                        exclude: true
+                    }
+                }
+            },
+            async (request) => {
+                return request.tenant?.id ?? 'no-tenant';
+            })
+
+    await app.ready();
+
+    // Test the excluded route without tenant header
+    const withTenantRes = await app.inject({
+        method: 'GET',
+        url: `/with-tenant`,
+        headers: {
+            'X-TENANT-ID': 'tenant1'
+        }
+    })
+
+    assert.equal(
+        withTenantRes.body,
+        'tenant1',
+    );
+
+    // Test the excluded route without tenant header
+    const withoutTenantRes = await app.inject({
+        method: 'GET',
+        url: `/without-tenant`,
+        headers: {
+            'X-TENANT-ID': 'tenant1'
+        }
+    })
+
+    assert.equal(
+        withoutTenantRes.body,
+        'no-tenant',
+    );
+})
+
+test('Custom route tenant identification strategy', async () => {
+    const app = fastify({ logger: false });
+
+    const { options } = testFactory()
+    const CUSTOM_TENANT_HEADER = 'X-CUSTOM-TENANT-ID';
+
+    await app.register(fastifyMultitenant, options);
+
+    // Define a route to test tenant-specific greetings
+    app.get(
+        '/current-tenant',
+        {
+            config: {
+                multitenant: {
+                    identifierStrategy: (request: FastifyRequest) => {
+                        return request.headers[CUSTOM_TENANT_HEADER.toLocaleLowerCase()] as string | undefined;
+                    }
+                }
+            }
+        },
+        async (request) => {
+            return request.tenant.id;
+        }
+    )
+
+    await app.ready();
+    
+    // Test the route with custom tenant header
+    const res = await app.inject({
+        method: 'GET',
+        url: `/current-tenant`,
+        headers: {
+            'X-TENANT-ID': 'tenant1',
+            [CUSTOM_TENANT_HEADER]: 'tenant2'
+        }
+    })
+
+    assert.equal(
+        res.body,
+        'tenant2',
+    );
 })

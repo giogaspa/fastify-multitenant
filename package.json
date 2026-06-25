@@ -1,6 +1,6 @@
 {
   "name": "@giogaspa/fastify-multitenant",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Fastify plugin for multi-tenancy",
   "author": "Gioacchino Gasparella",
   "license": "MIT",
@@ -26,7 +26,8 @@
     "dev": "tsup --watch --sourcemap",
     "build": "tsup",
     "test": "npm run build && node --test dist/test/**/*.test.js",
-    "test:coverage": "npm run build && node --test --experimental-test-coverage  dist/test/**/*.test.js"
+    "test:coverage": "npm run build && node --test --experimental-test-coverage  dist/test/**/*.test.js",
+    "prepack": "npm run build"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction } from 'fastify'
 import fp from 'fastify-plugin'
 
-import { BaseTenantConfig, BaseTenantResources, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, ResourceName, TenantConfigProvider, TenantResourcesProvider } from './types.js'
+import { BaseTenantConfig, BaseTenantResources, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, IdentifierStrategy, TenantConfigProvider, TenantResourcesProvider } from './types.js'
 import { TenantRequiredError } from './errors/TenantRequiredError.js'
 import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
 import { TenantResourcesNotFound } from './errors/TenantResourcesNotFound.js'
@@ -27,10 +27,15 @@ declare module "fastify" {
     }
 }
 
+// Default hook to run the tenant identification and resolution process
+// Can be overridden by the user in the plugin options
+const DEFAULT_TENANT_IDENTIFICATION_HOOK = 'onRequest'
+
 async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources>(fastify: FastifyInstance, opts: FastifyMultitenantOptions<TenantConfig, TenantResources>) {
-    const identifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
+    const globalIdentifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
     const configProvider = tenantConfigProviderFactory<TenantConfig>(opts.tenantConfigResolver)
     const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>(opts.resources, configProvider)
+    const hook = opts.hook || DEFAULT_TENANT_IDENTIFICATION_HOOK
 
     fastify.decorate(
         'multitenant',
@@ -42,11 +47,18 @@ async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantR
 
     fastify.decorateRequest('tenant', null)
 
-    fastify.addHook('onRequest', function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
+    fastify.addHook(hook, function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
         if (isExcludedRoute(request)) {
             //this.log.debug('Route is excluded from multitenancy')
             done()
             return
+        }
+
+        let identifyTenant = globalIdentifyTenant
+        const routeStrategy = getRouteTenantIdentificationStrategy(request)
+
+        if (routeStrategy) {
+            identifyTenant = identifyTenantFactory([routeStrategy])
         }
 
         // IDENTIFY TENANT
@@ -93,8 +105,14 @@ export default fp(fastifyMultitenant, {
     name: '@giogaspa/fastify-multitenant'
 })
 
-function isExcludedRoute(request: FastifyRequest) {
+function isExcludedRoute(request: FastifyRequest): boolean {
     const { routeOptions } = request as FastifyRequest & { routeOptions: FastifyMultitenantRouteOptions }
 
-    return routeOptions?.config?.fastifyMultitenant?.exclude === true
+    return routeOptions?.config?.multitenant?.exclude === true
+}
+
+function getRouteTenantIdentificationStrategy(request: FastifyRequest): IdentifierStrategy | undefined {
+    const { routeOptions } = request as FastifyRequest & { routeOptions: FastifyMultitenantRouteOptions }
+
+    return routeOptions?.config?.multitenant?.identifierStrategy
 }
