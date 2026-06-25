@@ -10,7 +10,12 @@
   },
   "keywords": [
     "fastify",
-    "multi-tenant"
+    "multi-tenant",
+    "multitenant",
+    "multi-tenancy",
+    "multitenancy",
+    "tenant",
+    "saas"
   ],
   "type": "module",
   "exports": {
