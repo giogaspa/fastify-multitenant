@@ -10,24 +10,38 @@
   },
   "keywords": [
     "fastify",
-    "multi-tenant"
+    "multi-tenant",
+    "multitenant",
+    "multi-tenancy",
+    "multitenancy",
+    "tenant",
+    "saas"
   ],
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.mjs"
       },
-      "require": "./dist/index.cjs"
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
     "dev": "tsup --watch --sourcemap",
     "build": "tsup",
-    "test": "npm run build && node --test dist/test/**/*.test.js",
-    "test:coverage": "npm run build && node --test --experimental-test-coverage  dist/test/**/*.test.js",
-    "prepack": "npm run build"
+    "typecheck": "tsc --noEmit",
+    "attw": "attw --pack",
+    "test": "npm run typecheck && npm run build && node --test dist/test/**/*.test.js",
+    "test:coverage": "npm run typecheck && npm run build && node --test --experimental-test-coverage  dist/test/**/*.test.js",
+    "prepack": "npm run build",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -36,20 +50,18 @@
     "fastify": "^5.0.0"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.4",
+    "@commitlint/cli": "^21.1.0",
+    "@commitlint/config-conventional": "^21.1.0",
     "@tsconfig/node20": "^20.1.5",
     "@types/node": "^22.14.0",
     "fastify": "^5.3.3",
+    "husky": "^9.1.7",
     "ts-node": "^10.9.2",
     "tsup": "8.3.0",
     "typescript": "^5.8.2"
   },
   "dependencies": {
     "fastify-plugin": "^5.0.1"
-  },
-  "files": [
-    "dist/**/*",
-    "README.md",
-    "LICENSE",
-    "package.json"
-  ]
+  }
 }

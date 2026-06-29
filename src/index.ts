@@ -45,7 +45,11 @@ async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantR
         }
     )
 
-    fastify.decorateRequest('tenant', null)
+    // The `request.tenant` type augmentation is intentionally left to the plugin consumer, so each
+    // app can declare its own tenant resources shape. The plugin therefore does not augment
+    // `FastifyRequest`, and the `null as any` cast initializes the decorator without clashing with
+    // whatever (possibly non-null) type the consumer declares for `tenant`.
+    fastify.decorateRequest('tenant', null as any)
 
     fastify.addHook(hook, function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
         if (isExcludedRoute(request)) {
