@@ -1,6 +1,7 @@
 import { FastifyRequest } from "fastify"
 
 import { TenantId, IdentifierStrategy } from "./types.js"
+import { normalizeTenantId } from "./normalize-tenant-id.js"
 
 export function identifyTenantFactory(strategies: IdentifierStrategy[]) {
     if (!strategies || strategies.length === 0) {
@@ -11,7 +12,9 @@ export function identifyTenantFactory(strategies: IdentifierStrategy[]) {
         let tenantId: TenantId | undefined = undefined
 
         for (const strategyFn of strategies) {
-            tenantId = await strategyFn(request)
+            // Normalize every strategy's result here so all strategies — built-in and custom —
+            // get the same trim/reject-empty handling, and a whitespace-only id falls through.
+            tenantId = normalizeTenantId(await strategyFn(request))
             if (tenantId) {
                 break // Exit the loop if a tenant ID is found
             }
