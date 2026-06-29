@@ -8,7 +8,7 @@ export default defineConfig([
         dts: true,
         sourcemap: true,
         format: ['esm', 'cjs'],
-        target: 'node16',
+        target: 'node20',
         outExtension({ format }) {
             return {
                 js: format === 'esm' ? '.mjs' : '.cjs',
@@ -21,7 +21,7 @@ export default defineConfig([
         sourcemap: true,
         clean: false, // false to keep plugin build files   
         format: ['esm'],
-        target: 'node16',
+        target: 'node20',
         outDir: 'dist/test',
     }
 ])
