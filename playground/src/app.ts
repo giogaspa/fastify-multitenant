@@ -101,7 +101,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
         '/no-tenant',
         {
             config: {
-                fastifyMultitenant: {
+                multitenant: {
                     exclude: true
                 }
             }
@@ -115,7 +115,7 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
         '/invalidate-all',
         {
             config: {
-                fastifyMultitenant: {
+                multitenant: {
                     exclude: true
                 }
             }
