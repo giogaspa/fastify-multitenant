@@ -3,13 +3,15 @@ import { FastifyRequest } from "fastify"
 import { IdentifierStrategyFactory } from "./types.js"
 
 export const headerIdentifierStrategy: IdentifierStrategyFactory = (name: string) => {
-    return (request: FastifyRequest) => {
-        const headerValue = request.headers[name.toLowerCase()]
+    const lowerCaseName = name.toLowerCase()
 
-        if (headerValue) {
-            return headerValue as string | undefined
+    return (request: FastifyRequest) => {
+        const headerValue = request.headers[lowerCaseName]
+
+        if (typeof headerValue !== "string") {
+            return undefined
         }
 
-        return undefined
+        return headerValue
     }
 }

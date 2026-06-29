@@ -38,20 +38,20 @@ test('Header strategy - missing header', async () => {
     assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined if the header is missing')
 })
 
-test('Header strategy - empty header value', async () => {
+test('Header strategy - array header value', async () => {
     const TENANT_HEADER = 'x-tenant-id'
 
     const strategy = headerIdentifierStrategy(TENANT_HEADER)
 
     const request: FastifyRequest = {
         headers: {
-            [TENANT_HEADER]: ''
+            [TENANT_HEADER]: ['tenant1', 'tenant2']
         }
     } as any
 
     const resolvedTenantId = strategy(request)
 
-    assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined when header value is empty')
+    assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined for a non-string (array) header value')
 })
 
 test('Query strategy', async () => {
@@ -85,18 +85,18 @@ test('Query strategy - missing parameter', async () => {
     assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined if the query parameter is missing')
 })
 
-test('Query strategy - empty parameter value', async () => {
+test('Query strategy - array parameter value', async () => {
     const TENANT_PARAM = 'tenantId'
 
     const strategy = queryIdentifierStrategy(TENANT_PARAM)
 
     const request: FastifyRequest = {
         query: {
-            [TENANT_PARAM]: ''
+            [TENANT_PARAM]: ['tenant1', 'tenant2']
         }
     } as any
 
     const resolvedTenantId = strategy(request)
 
-    assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined when query parameter value is empty')
+    assert.strictEqual(resolvedTenantId, undefined, 'Should return undefined for a non-string (array) query parameter value')
 })
