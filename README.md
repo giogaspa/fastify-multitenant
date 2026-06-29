@@ -1,4 +1,4 @@
-# Fastify Multi-Tenancy Plugin v1
+# Fastify Multi-Tenancy Plugin
 
 A flexible multi-tenancy plugin for Fastify that simplifies building multi-tenant applications by handling tenant detection, configuration, and resource isolation.
 
@@ -29,7 +29,7 @@ Examples:
 
 ### Done
 
-- 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`, `cookieIdentifierStrategy`,...)
+- 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`,...)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
 - 🔁 **Access other tenant resources inside a resource factory**
 - ✨ Written in **TypeScript** with full type safety and autocompletion
@@ -65,7 +65,7 @@ npm install @giogaspa/fastify-multitenant
 
 ```ts
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
-import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, ResourceFactoryConfig } from '@giogaspa/fastify-multitenant'
+import fastifyMultitenant, { headerIdentifierStrategy, createTenantResourceConfig, FastifyMultitenantOptions } from '@giogaspa/fastify-multitenant'
 
 declare module "fastify" {
     interface FastifyRequest {
@@ -91,7 +91,7 @@ type TenantResourcesType = {
 
 // In this example we used a Map for simplicity, but you can manage the configurations however you prefer.
 // Check the Playground folder for an example based on SQLite and Drizzle ORM.
-const tenantConfigs = new Map<string, TenantConfig>()
+const tenantConfigs = new Map<string, TenantConfigType>()
 
 export const app: FastifyPluginAsync = async function App(server: FastifyInstance) {
 
@@ -116,11 +116,11 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
                     server.log.debug(`[${resource}]: Deleting db resource`)
                 }
             }),
-            // ... or you can directly define the configuration object as specified by the type `TenantResourceFactory`
-            'greeting': async ({ config, resources }: ResourceFactoryConfig<TenantConfig>) => {
+            // ... or you can directly define the factory function as specified by the type `TenantResourceFactory`
+            'greeting': async ({ tenantConfig, resources }) => {
                 const tenantGreetings = await resources.db!.greetings.findMany()
 
-                const greetingsClient = greetingFactory(config.id, tenantGreetings)
+                const greetingsClient = greetingFactory(tenantConfig.id, tenantGreetings)
 
                 return greetingsClient
             },
@@ -172,8 +172,7 @@ By default, identification strategies are executed during the `onRequest` [hook]
 
 ```ts
 headerIdentifierStrategy(headerName: string): IdentifierStrategy
-cookieIdentifierStrategy(cookieName: string): IdentifierStrategy
-queryParamIdentifierStrategy(param: string): IdentifierStrategy
+queryIdentifierStrategy(param: string): IdentifierStrategy
 ```
 
 Example:
@@ -181,7 +180,7 @@ Example:
 ```ts
 tenantIdentifierStrategies: [
   headerIdentifierStrategy('X-TENANT-ID'),
-  queryParamIdentifierStrategy('tenant_id'),
+  queryIdentifierStrategy('tenant_id'),
 ]
 ```
 
@@ -258,11 +257,11 @@ Example:
 ```ts
 resources: {
   db: {
-    factory: async ({ config }) => new PrismaClient({ ... }),
+    factory: async ({ tenantConfig }) => new PrismaClient({ ... }),
   },
   mailer: async ({ tenantConfig, resources }) => {
-      const settings = await resources.db.settings.findFirst();
-      return createMailer({ ...config.mailerConfig, from: settings.sender });
+      const settings = await resources.db!.settings.findFirst();
+      return createMailer({ ...tenantConfig.mailerConfig, from: settings.sender });
   }
 }
 ```
