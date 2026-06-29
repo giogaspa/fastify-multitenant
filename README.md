@@ -1,4 +1,4 @@
-# Fastify Multi-Tenancy Plugin v1
+# Fastify Multi-Tenancy Plugin
 
 A flexible multi-tenancy plugin for Fastify that simplifies building multi-tenant applications by handling tenant detection, configuration, and resource isolation.
 
