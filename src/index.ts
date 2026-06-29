@@ -2,10 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest, HookHandlerDoneFunction 
 import fp from 'fastify-plugin'
 
 import { BaseTenantConfig, BaseTenantResources, FastifyMultitenantOptions, FastifyMultitenantRouteOptions, IdentifierStrategy, TenantConfigProvider, TenantResourcesProvider } from './types.js'
-import { TenantRequiredError } from './errors/TenantRequiredError.js'
-import { TenantConfigurationNotFound } from './errors/TenantConfigurationNotFound.js'
-import { TenantResourcesNotFound } from './errors/TenantResourcesNotFound.js'
-import { TenantResourceCreateError } from './errors/TenantResourceCreateError.js'
+import { TenantRequiredError, TenantConfigurationNotFound, TenantResourcesNotFound, TenantResourceCreateError } from './errors/index.js'
 import { tenantConfigProviderFactory } from './providers/tenant-config-provider.js'
 import { tenantResourceProviderFactory } from './providers/tenant-resource-provider.js'
 import { identifyTenantFactory } from './tenant-identification.js'
@@ -17,6 +14,7 @@ export { headerIdentifierStrategy } from './strategies/header-identifier-strateg
 export { queryIdentifierStrategy } from './strategies/query-identifier-strategy.js'
 export { tenantResourcesContext } from './request-context.js'
 export { createTenantResourceConfig, CreateTenantResourceConfigArgs } from './utils.js'
+export { TenantRequiredError, TenantConfigurationNotFound, TenantResourcesNotFound, TenantResourceCreateError } from './errors/index.js'
 
 declare module "fastify" {
     interface FastifyInstance {

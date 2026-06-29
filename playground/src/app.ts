@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify'
-import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, createTenantResourceConfig } from '@giogaspa/fastify-multitenant'
+import fastifyMultitenant, { headerIdentifierStrategy, FastifyMultitenantOptions, queryIdentifierStrategy, createTenantResourceConfig, TenantRequiredError, TenantConfigurationNotFound } from '@giogaspa/fastify-multitenant'
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql'
 import { createClient } from '@libsql/client';
@@ -77,6 +77,20 @@ export const app: FastifyPluginAsync = async function App(server: FastifyInstanc
 
     // Register plugins
     server.register(fastifyMultitenant, options)
+
+    // Map plugin errors to client-facing responses (do not echo the tenant id back)
+    server.setErrorHandler((error, request, reply) => {
+        if (error instanceof TenantRequiredError) {
+            return reply.status(400).send({ error: 'tenant_required' })
+        }
+
+        if (error instanceof TenantConfigurationNotFound) {
+            return reply.status(404).send({ error: 'tenant_not_found' })
+        }
+
+        request.log.error(error)
+        return reply.status(error.statusCode ?? 500).send({ error: 'internal_error' })
+    })
 
     // Register modules
     server.register(GreetingModule)

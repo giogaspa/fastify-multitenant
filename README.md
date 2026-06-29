@@ -19,6 +19,7 @@ Examples:
 - [Plugin Options](#plugin-options)
 - [Plugin Decorators](#plugin-decorators)
 - [Route Options](#route-options)
+- [Error Handling](#error-handling)
 - [TypeScript: Declaration Merging](#typescript-declaration-merging)
 - [Advanced: Tenant Resources Context](#advanced-tenant-resources-context)
 - [Performance Considerations](#performance-considerations)
@@ -344,6 +345,42 @@ The `identifierStrategy` option allows you to specify a custom tenant identifica
             }
         },
 ```
+
+## Error Handling
+
+The plugin throws typed errors during tenant identification and resource resolution. They are exported
+so you can `instanceof`-check them in a `setErrorHandler` and map them to your own response shape.
+Each error carries a numeric `statusCode`.
+
+| Class | `statusCode` | Thrown when |
+|-------|--------------|-------------|
+| `TenantRequiredError` | `400` | No strategy returned a tenant id (missing/empty). |
+| `TenantConfigurationNotFound` | `404` | `tenantConfigResolver` returned `undefined` for the tenant. |
+| `TenantResourcesNotFound` | `500` | Config resolved but resources resolved to `undefined`. |
+| `TenantResourceCreateError` | `500` | A resource factory threw while creating resources. |
+
+```ts
+import {
+  TenantRequiredError,
+  TenantConfigurationNotFound,
+} from '@giogaspa/fastify-multitenant'
+
+fastify.setErrorHandler((error, request, reply) => {
+  if (error instanceof TenantRequiredError) {
+    return reply.status(400).send({ error: 'tenant_required' })
+  }
+
+  if (error instanceof TenantConfigurationNotFound) {
+    return reply.status(404).send({ error: 'tenant_not_found' })
+  }
+
+  // Fall back to the error's own statusCode.
+  return reply.status(error.statusCode ?? 500).send({ error: 'internal_error' })
+})
+```
+
+> ⚠️ Avoid echoing the tenant id back to the client — the built-in messages include it for
+> server-side logging, so return a generic client-facing message as shown above.
 
 ## TypeScript: Declaration Merging
 
