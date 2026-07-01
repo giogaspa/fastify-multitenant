@@ -254,3 +254,184 @@ test('Custom route tenant identification strategy', async () => {
         'tenant2',
     );
 })
+
+test('Closing the server runs resource onDelete hooks (onClose cleanup)', async () => {
+    const app = fastify({ logger: false })
+
+    const deleted: string[] = []
+
+    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
+        tenantIdentifierStrategies: [headerIdentifierStrategy('X-TENANT-ID')],
+        tenantConfigResolver: async (tenantId: string) => ({ id: tenantId, name: `Tenant ${tenantId}`, greetings: [] }),
+        resources: {
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'id',
+                factory: async ({ tenantConfig }) => tenantConfig.id,
+                onDelete: async (resource) => {
+                    deleted.push(resource as string)
+                },
+            }),
+        },
+    }
+
+    await app.register(fastifyMultitenant, options)
+    app.get('/', async () => 'ok')
+    await app.ready()
+
+    // Create the tenant resources by serving a request for the tenant
+    await app.inject({ method: 'GET', url: '/', headers: { 'X-TENANT-ID': 'tenant1' } })
+
+    assert.deepEqual(deleted, [], 'onDelete should not run before the server is closed')
+
+    await app.close()
+
+    assert.deepEqual(deleted, ['tenant1'], 'onDelete should run for cached resources when the server closes')
+})
+
+test('Closing the server does not reject when a tenant resource failed to create', async () => {
+    const app = fastify({ logger: false })
+
+    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
+        tenantIdentifierStrategies: [headerIdentifierStrategy('X-TENANT-ID')],
+        tenantConfigResolver: async (tenantId: string) => ({ id: tenantId, name: `Tenant ${tenantId}`, greetings: [] }),
+        resources: {
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'id',
+                factory: async () => {
+                    throw new Error('resource creation failed')
+                },
+            }),
+        },
+    }
+
+    await app.register(fastifyMultitenant, options)
+    app.get('/', async () => 'ok')
+    await app.ready()
+
+    // The failed factory leaves a rejected creation promise cached for the tenant
+    const res = await app.inject({ method: 'GET', url: '/', headers: { 'X-TENANT-ID': 'tenant1' } })
+    assert.equal(res.statusCode, 500, 'the failed resource creation should surface as a 500')
+
+    // onClose -> invalidateAll must not re-throw the cached rejected creation promise
+    await assert.doesNotReject(app.close(), 'closing must not reject when a tenant resource failed to create')
+})
+
+test('Invalidate does not re-throw a cached failed-creation promise', async () => {
+    const app = fastify({ logger: false })
+
+    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
+        tenantIdentifierStrategies: [headerIdentifierStrategy('X-TENANT-ID')],
+        tenantConfigResolver: async (tenantId: string) => ({ id: tenantId, name: `Tenant ${tenantId}`, greetings: [] }),
+        resources: {
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'id',
+                factory: async () => {
+                    throw new Error('resource creation failed')
+                },
+            }),
+        },
+    }
+
+    await app.register(fastifyMultitenant, options)
+    app.get('/', async () => 'ok')
+    await app.ready()
+
+    // The failed factory leaves a rejected creation promise cached for the tenant
+    await app.inject({ method: 'GET', url: '/', headers: { 'X-TENANT-ID': 'tenant1' } })
+
+    // invalidate() must swallow the rejected creation promise (nothing to tear down) and evict
+    // the poisoned entry, not re-throw the original factory error.
+    await assert.doesNotReject(
+        app.multitenant.resourceProvider.invalidate('tenant1'),
+        'invalidate must not re-throw a cached failed-creation promise'
+    )
+
+    await app.close()
+})
+
+test('Invalidate runs the remaining onDelete hooks even if one throws', async () => {
+    const app = fastify({ logger: false })
+
+    const deleted: string[] = []
+
+    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
+        tenantIdentifierStrategies: [headerIdentifierStrategy('X-TENANT-ID')],
+        tenantConfigResolver: async (tenantId: string) => ({ id: tenantId, name: `Tenant ${tenantId}`, greetings: [] }),
+        resources: {
+            // Declared first -> torn down LAST (reverse order). It must still run even though the
+            // resource torn down before it (the thrower) throws.
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'survivor',
+                factory: async () => 'survivor-resource',
+                onDelete: async (resource) => {
+                    deleted.push(resource as string)
+                },
+            }),
+            // Declared last -> torn down FIRST. Its throw must not abort the survivor's onDelete.
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'thrower',
+                factory: async () => 'thrower-resource',
+                onDelete: async () => {
+                    throw new Error('thrower onDelete failed')
+                },
+            }),
+        },
+    }
+
+    await app.register(fastifyMultitenant, options)
+    app.get('/', async () => 'ok')
+    await app.ready()
+
+    await app.inject({ method: 'GET', url: '/', headers: { 'X-TENANT-ID': 'tenant1' } })
+
+    // A throwing onDelete (run first, due to reverse order) must not abort the cleanup of the
+    // tenant's other resources.
+    await assert.doesNotReject(
+        app.multitenant.resourceProvider.invalidate('tenant1'),
+        'invalidate must not reject when an onDelete throws'
+    )
+    assert.deepEqual(deleted, ['survivor-resource'], 'the sibling resource onDelete must still run after an earlier onDelete threw')
+
+    await app.close()
+})
+
+test('Invalidate runs onDelete hooks in reverse creation order', async () => {
+    const app = fastify({ logger: false })
+
+    const order: string[] = []
+
+    const options: FastifyMultitenantOptions<TenantConfig, TenantResources> = {
+        tenantIdentifierStrategies: [headerIdentifierStrategy('X-TENANT-ID')],
+        tenantConfigResolver: async (tenantId: string) => ({ id: tenantId, name: `Tenant ${tenantId}`, greetings: [] }),
+        resources: {
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'db',
+                factory: async () => 'db',
+                onDelete: async () => {
+                    order.push('db')
+                },
+            }),
+            ...createTenantResourceConfig<TenantConfig, TenantResources>({
+                name: 'mailer',
+                factory: async () => 'mailer',
+                onDelete: async () => {
+                    order.push('mailer')
+                },
+            }),
+        },
+    }
+
+    await app.register(fastifyMultitenant, options)
+    app.get('/', async () => 'ok')
+    await app.ready()
+
+    await app.inject({ method: 'GET', url: '/', headers: { 'X-TENANT-ID': 'tenant1' } })
+
+    await app.multitenant.resourceProvider.invalidate('tenant1')
+
+    // Resources are created in declaration order (db then mailer, mailer may depend on db),
+    // so teardown must run in reverse — dependents (mailer) before dependencies (db).
+    assert.deepEqual(order, ['mailer', 'db'], 'onDelete should run in reverse creation order')
+
+    await app.close()
+})
