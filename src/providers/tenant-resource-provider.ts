@@ -1,14 +1,18 @@
-import { BaseTenantConfig, TenantId, TenantResourceConfigs, TenantResourcesProvider, BaseTenantResources, TenantConfigProvider } from "../types.js"
+import { FastifyBaseLogger } from "fastify"
+
+import { BaseTenantConfig, TenantId, TenantResourceConfigs, TenantResourcesProvider, BaseTenantResources, TenantConfigProvider, TenantResourceConfig, TenantResourceOnDeleteHook } from "../types.js"
 
 /**
- * 
+ *
  * @param resourceConfigs Tenant resource
- * @param configProvider 
- * @returns 
+ * @param configProvider
+ * @param logger Optional logger used to report errors.
+ * @returns
  */
 export function tenantResourceProviderFactory<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources>(
     resourceConfigs: TenantResourceConfigs<TenantConfig, TenantResources>,
-    configProvider: TenantConfigProvider<TenantConfig>
+    configProvider: TenantConfigProvider<TenantConfig>,
+    logger?: FastifyBaseLogger
 ): TenantResourcesProvider<TenantResources> {
     const inMemoryResourcesCache = new Map<TenantId, Promise<TenantResources | undefined>>()
 
@@ -34,18 +38,43 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
      * @param tenantId - The ID of the tenant whose resources should be invalidated.
      */
     async function invalidate(tenantId: TenantId) {
-        if (inMemoryResourcesCache.has(tenantId)) {
-            const tenantResources = inMemoryResourcesCache.get(tenantId)
+        if (!inMemoryResourcesCache.has(tenantId)) {
+            logger?.debug({ tenantId }, `No cached resources found for tenant ${tenantId}. Nothing to invalidate.`)
+            return
+        }
 
-            for (const [name, resource] of Object.entries(tenantResources!)) {
-                const config = resourceConfigs[name]
+        try {
+            // The cache stores the resource-creation promise; await it before iterating.
+            const tenantResourcesPromise = inMemoryResourcesCache.get(tenantId)
 
-                if (typeof config === 'object' && 'onDelete' in config && typeof config.onDelete === 'function') {
-                    await config.onDelete(resource)
+            // Remove the tenant's resources from the cache before awaiting, so a concurrent getAll
+            // rebuilds a fresh resource instead of receiving the one being torn down (evict-first).
+            inMemoryResourcesCache.delete(tenantId)
+
+            const tenantResources = await tenantResourcesPromise
+
+            if (tenantResources) {
+                // Reverse the order of the resources to ensure that the onDelete hooks are called in the reverse order of creation
+                const resources = Object.entries(tenantResources).reverse()
+
+                // Run the onDelete hooks for each resource if they are defined
+                for (const [name, resource] of resources) {
+                    const config = resourceConfigs[name]
+
+                    if (hasOnDeleteHook(config)) {
+                        try {
+                            await config.onDelete(resource)
+                        } catch (err) {
+                            // Best-effort cleanup: log and keep tearing down the remaining resources.
+                            logger?.error({ err, tenantId, resource: name }, `Tenant resource ${name} onDelete hook failed for tenant ${tenantId}`)
+                        }
+                    }
                 }
             }
-
-            inMemoryResourcesCache.delete(tenantId)
+        } catch (err) {
+            // Resource creation failed earlier (a rejected promise is cached): there is nothing
+            // to tear down — the poisoned entry has already been evicted above.
+            logger?.debug({ err, tenantId }, `Invalidating a tenant ${tenantId} whose resource creation had failed.`)
         }
     }
 
@@ -56,9 +85,8 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
      * This is useful when you want to ensure that all resources are recreated on the next request
      */
     async function invalidateAll() {
-        for (const [tenantId] of inMemoryResourcesCache.entries()) {
-            await invalidate(tenantId)
-        }
+        const tenantIds = Array.from(inMemoryResourcesCache.keys())
+        await Promise.allSettled(tenantIds.map(invalidate))
 
         inMemoryResourcesCache.clear()
     }
@@ -87,6 +115,13 @@ export function tenantResourceProviderFactory<TenantConfig extends BaseTenantCon
         }
 
         return resources as TenantResources
+    }
+
+    function hasOnDeleteHook(config: TenantResourceConfig<TenantConfig, TenantResources, any>): config is TenantResourceConfig<TenantConfig, TenantResources, any> & { onDelete: TenantResourceOnDeleteHook<any> } {
+        return config
+            && typeof config === 'object'
+            && 'onDelete' in config
+            && typeof config.onDelete === 'function'
     }
 
     return {

@@ -32,7 +32,7 @@ const DEFAULT_TENANT_IDENTIFICATION_HOOK = 'onRequest'
 async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantResources extends BaseTenantResources>(fastify: FastifyInstance, opts: FastifyMultitenantOptions<TenantConfig, TenantResources>) {
     const globalIdentifyTenant = identifyTenantFactory(opts.tenantIdentifierStrategies)
     const configProvider = tenantConfigProviderFactory<TenantConfig>(opts.tenantConfigResolver)
-    const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>(opts.resources, configProvider)
+    const resourceProvider = tenantResourceProviderFactory<TenantConfig, TenantResources>(opts.resources, configProvider, fastify.log)
     const hook = opts.hook || DEFAULT_TENANT_IDENTIFICATION_HOOK
 
     fastify.decorate(
@@ -48,6 +48,12 @@ async function fastifyMultitenant<TenantConfig extends BaseTenantConfig, TenantR
     // `FastifyRequest`, and the `null as any` cast initializes the decorator without clashing with
     // whatever (possibly non-null) type the consumer declares for `tenant`.
     fastify.decorateRequest('tenant', null as any)
+
+    // Release every tenant's cached resources on server shutdown, running each resource's
+    // onDelete hook (e.g. closing DB connections) so they don't leak when the server stops.
+    fastify.addHook('onClose', async () => {
+        await resourceProvider.invalidateAll()
+    })
 
     fastify.addHook(hook, function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction) {
         if (isExcludedRoute(request)) {
