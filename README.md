@@ -33,6 +33,7 @@ Examples:
 - 🔍 **Composable tenant detection** via identifier strategies (e.g., `headerIdentifierStrategy`, `queryIdentifierStrategy`,...)
 - 🧩 **Register tenant-specific resources** (DB, Mailer, OpenAI, in-memory stores, etc.)
 - 🔁 **Access other tenant resources inside a resource factory**
+- 🧹 **Automatic resource cleanup on server shutdown** (runs each resource's `onDelete`)
 - ✨ Written in **TypeScript** with full type safety and autocompletion
 
 ### In progress
