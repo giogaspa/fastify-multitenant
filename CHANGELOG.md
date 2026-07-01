@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/giogaspa/fastify-multitenant/compare/v1.3.1...v1.4.0) (2026-07-01)
+
+
+### Features
+
+* **errors:** export error classes and return 404 for missing config ([#33](https://github.com/giogaspa/fastify-multitenant/issues/33)) ([c38c5ab](https://github.com/giogaspa/fastify-multitenant/commit/c38c5abb39728a42c4c3e7b881e761d3c1d83deb))
+
+
+### Bug Fixes
+
+* clean up tenant resources on shutdown and harden teardown ([#38](https://github.com/giogaspa/fastify-multitenant/issues/38)) ([91fc9b2](https://github.com/giogaspa/fastify-multitenant/commit/91fc9b2872b4a911d0d1b009dfac9a6ee3c6de34))
+* **identification:** reject and trim whitespace-only tenant ids ([#37](https://github.com/giogaspa/fastify-multitenant/issues/37)) ([971fc4c](https://github.com/giogaspa/fastify-multitenant/commit/971fc4cba38b0d9b89b9c1fd4874d84786f4fe6e))
+
 ## [1.3.1](https://github.com/giogaspa/fastify-multitenant/compare/v1.3.0...v1.3.1) (2026-06-29)
 
 
